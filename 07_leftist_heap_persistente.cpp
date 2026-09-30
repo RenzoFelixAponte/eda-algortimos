@@ -1,58 +1,76 @@
-// leftist heap persistente (min)
-// todo es merge, que baja solo por la espina derecha (O(lg n)) copiando esos nodos
-// unir dos versiones -> confluente
+// leftist heap persistente (min heap)
+// todo se hace con merge, copia la espina derecha
 #include <iostream>
 #include <vector>
 #include <algorithm>
 using namespace std;
 
-typedef int Llave;
-
 struct NodoH {
-    Llave llave;
+    int key;
     int rango;
-    NodoH* izq;
-    NodoH* der;
+    NodoH* left;
+    NodoH* right;
 };
 
-int rango(NodoH* n) { return n ? n->rango : 0; }
+int rango(NodoH* p) {
+    if (p == nullptr) return 0;
+    return p->rango;
+}
 
 NodoH* mergeH(NodoH* a, NodoH* b) {
-    if (!a) return b;
-    if (!b) return a;
-    if (b->llave < a->llave) swap(a, b);                  // a tiene el mínimo (min-heap)
-    NodoH* c = new NodoH(*a);                             // copia del nodo del camino
-    c->der = mergeH(a->der, b);
-    if (rango(c->izq) < rango(c->der)) swap(c->izq, c->der);
-    c->rango = rango(c->der) + 1;
-    return c;
+    if (a == nullptr) return b;
+    if (b == nullptr) return a;
+    if (b->key < a->key) {
+        NodoH* aux = a;
+        a = b;
+        b = aux;
+    }
+    NodoH* p = new NodoH(*a);  // copia
+    p->right = mergeH(a->right, b);
+    if (rango(p->left) < rango(p->right)) {
+        NodoH* aux = p->left;
+        p->left = p->right;
+        p->right = aux;
+    }
+    p->rango = rango(p->right) + 1;
+    return p;
 }
 
 struct HeapPersistente {
     vector<NodoH*> raiz;
     HeapPersistente() { raiz.push_back(nullptr); }
 
-    int nueva(NodoH* r) { raiz.push_back(r); return (int)raiz.size() - 1; }
+    int nueva(NodoH* r) {
+        raiz.push_back(r);
+        return (int)raiz.size() - 1;
+    }
 
-    int insertar(int v, Llave x) { return nueva(mergeH(raiz[v], new NodoH{x, 1, nullptr, nullptr})); }
+    int insertar(int v, int x) {
+        NodoH* p = new NodoH;
+        p->key = x; p->rango = 1; p->left = nullptr; p->right = nullptr;
+        return nueva(mergeH(raiz[v], p));
+    }
     int extraerMin(int v) {
-        if (!raiz[v]) return nueva(nullptr);
-        return nueva(mergeH(raiz[v]->izq, raiz[v]->der));
+        if (raiz[v] == nullptr) return nueva(nullptr);
+        return nueva(mergeH(raiz[v]->left, raiz[v]->right));
     }
     int unir(int v1, int v2) { return nueva(mergeH(raiz[v1], raiz[v2])); }
     bool vacio(int v) { return raiz[v] == nullptr; }
-    Llave minimo(int v) { return raiz[v]->llave; }
+    int minimo(int v) { return raiz[v]->key; }
 
-    // lista ordenada de la versión (no la modifica: usa versiones temporales)
-    vector<Llave> ordenado(int v) {
-        vector<Llave> out;
-        NodoH* r = raiz[v];
-        while (r) { out.push_back(r->llave); r = mergeH(r->izq, r->der); }
-        return out;
+    vector<int> ordenado(int v) {
+        vector<int> res;
+        NodoH* p = raiz[v];
+        while (p != nullptr) {
+            res.push_back(p->key);
+            p = mergeH(p->left, p->right);
+        }
+        return res;
     }
     void imprimir(int v) {
         cout << "v" << v << ": ";
-        for (Llave x : ordenado(v)) cout << x << " ";
+        vector<int> res = ordenado(v);
+        for (int i = 0; i < (int)res.size(); i++) cout << res[i] << " ";
         cout << "\n";
     }
 };
@@ -60,14 +78,17 @@ struct HeapPersistente {
 int main() {
     HeapPersistente H;
     int a = 0;
-    for (int x : {7, 3, 9, 1}) a = H.insertar(a, x);     // a = {1,3,7,9}
+    int x1[4] = {7, 3, 9, 1};
+    for (int i = 0; i < 4; i++) a = H.insertar(a, x1[i]);
     int b = 0;
-    for (int x : {8, 2, 6}) b = H.insertar(b, x);        // b = {2,6,8}
-    int c = H.extraerMin(a);                             // {3,7,9}
-    int d = H.unir(a, b);                                // {1,2,3,6,7,8,9}  confluente
-    int e = H.unir(d, d);                                // unión consigo misma
+    int x2[3] = {8, 2, 6};
+    for (int i = 0; i < 3; i++) b = H.insertar(b, x2[i]);
+    int c = H.extraerMin(a);
+    int d = H.unir(a, b);
+    int e = H.unir(d, d);  // consigo mismo
 
-    for (int v : {a, b, c, d, e}) H.imprimir(v);
+    int vs[5] = {a, b, c, d, e};
+    for (int i = 0; i < 5; i++) H.imprimir(vs[i]);
     cout << "min(a)=" << H.minimo(a) << " sigue intacto tras extraerMin\n";
     return 0;
 }

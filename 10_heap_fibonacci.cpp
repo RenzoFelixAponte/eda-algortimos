@@ -1,20 +1,17 @@
 // fibonacci heap (min)
-// insert, union, decrease-key O(1) amortizado; extract-min y delete O(lg n) amortizado
-// potencial: t(H) + 2 m(H)
+// insert, union y decrease key O(1) amortizado, extract min O(lg n)
 #include <iostream>
 #include <vector>
 #include <climits>
 #include <cmath>
 using namespace std;
 
-typedef int Llave;
-
 struct Nodo {
-    Llave llave;
+    int key;
     Nodo* padre;
     Nodo* hijo;
-    Nodo* izq;
-    Nodo* der;
+    Nodo* left;
+    Nodo* right;
     int grado;
     bool marca;
 };
@@ -23,59 +20,75 @@ struct FibHeap {
     Nodo* min = nullptr;
     int n = 0;
 
-    // ---- utilidades de lista circular ----
-    static void meterEnLista(Nodo* lista, Nodo* x) {     // x a la izquierda de "lista"
-        x->der = lista;
-        x->izq = lista->izq;
-        lista->izq->der = x;
-        lista->izq = x;
+    // mete x a la izquierda de lista
+    static void meterEnLista(Nodo* lista, Nodo* x) {
+        x->right = lista;
+        x->left = lista->left;
+        lista->left->right = x;
+        lista->left = x;
     }
     static void sacarDeLista(Nodo* x) {
-        x->izq->der = x->der;
-        x->der->izq = x->izq;
-        x->izq = x->der = x;
+        x->left->right = x->right;
+        x->right->left = x->left;
+        x->left = x;
+        x->right = x;
     }
 
     void insertarEnRaices(Nodo* x) {
         x->padre = nullptr;
-        if (min == nullptr) { x->izq = x->der = x; min = x; }
+        if (min == nullptr) {
+            x->left = x;
+            x->right = x;
+            min = x;
+        }
         else {
             meterEnLista(min, x);
-            if (x->llave < min->llave) min = x;
+            if (x->key < min->key) min = x;
         }
     }
 
-    // ---- Insert O(1) ----
-    Nodo* insertar(Llave k) {
-        Nodo* x = new Nodo{k, nullptr, nullptr, nullptr, nullptr, 0, false};
-        x->izq = x->der = x;
-        insertarEnRaices(x);
+    Nodo* insertar(int k) {
+        Nodo* p = new Nodo;
+        p->key = k;
+        p->padre = nullptr; p->hijo = nullptr;
+        p->grado = 0; p->marca = false;
+        p->left = p;
+        p->right = p;
+        insertarEnRaices(p);
         n++;
-        return x;
+        return p;
     }
 
-    Llave minimo() { return min->llave; }
+    int minimo() { return min->key; }
     bool vacio() { return min == nullptr; }
 
-    // ---- Union O(1): concatenar listas circulares ----
     void unir(FibHeap& H2) {
         if (H2.min == nullptr) return;
-        if (min == nullptr) { min = H2.min; n = H2.n; }
-        else {
-            Nodo* a = min->der;
-            Nodo* b = H2.min->izq;
-            min->der = H2.min;  H2.min->izq = min;
-            a->izq = b;         b->der = a;
-            if (H2.min->llave < min->llave) min = H2.min;
+        if (min == nullptr) {
+            min = H2.min;
+            n = H2.n;
+        } else {
+            Nodo* a = min->right;
+            Nodo* b = H2.min->left;
+            min->right = H2.min;
+            H2.min->left = min;
+            a->left = b;
+            b->right = a;
+            if (H2.min->key < min->key) min = H2.min;
             n += H2.n;
         }
-        H2.min = nullptr; H2.n = 0;
+        H2.min = nullptr;
+        H2.n = 0;
     }
 
-    // ---- Link: y pasa a ser hijo de x ----
+    // y se vuelve hijo de x
     void binomialLink(Nodo* y, Nodo* x) {
         sacarDeLista(y);
-        if (x->hijo == nullptr) { x->hijo = y; y->izq = y->der = y; }
+        if (x->hijo == nullptr) {
+            x->hijo = y;
+            y->left = y;
+            y->right = y;
+        }
         else meterEnLista(x->hijo, y);
         y->padre = x;
         y->marca = false;
@@ -83,90 +96,118 @@ struct FibHeap {
     }
 
     void consolidate() {
-        int maxGrado = (int)(log2((double)n) * 1.45) + 2;   // D(n) <= log_φ n ≈ 1.44 lg n
+        int maxGrado = (int)(log2((double)n) * 1.45) + 2;
         vector<Nodo*> A(maxGrado + 1, nullptr);
 
-        // copiar raíces a un arreglo porque la lista cambia mientras recorremos
+        // guardo las raices primero porque la lista cambia
         vector<Nodo*> raices;
-        Nodo* x = min;
-        do { raices.push_back(x); x = x->der; } while (x != min);
+        Nodo* p = min;
+        do {
+            raices.push_back(p);
+            p = p->right;
+        } while (p != min);
 
-        for (Nodo* w : raices) {
-            x = w;
-            int d = x->grado;
+        for (int i = 0; i < (int)raices.size(); i++) {
+            p = raices[i];
+            int d = p->grado;
             while (A[d] != nullptr) {
-                Nodo* y = A[d];
-                if (y->llave < x->llave) swap(x, y);
-                binomialLink(y, x);
+                Nodo* q = A[d];
+                if (q->key < p->key) {
+                    Nodo* aux = p;
+                    p = q;
+                    q = aux;
+                }
+                binomialLink(q, p);
                 A[d] = nullptr;
                 d++;
             }
-            A[d] = x;
+            A[d] = p;
         }
         min = nullptr;
-        for (Nodo* a : A) if (a) {
-            a->izq = a->der = a;
-            insertarEnRaices(a);
+        for (int i = 0; i < (int)A.size(); i++) {
+            if (A[i] != nullptr) {
+                A[i]->left = A[i];
+                A[i]->right = A[i];
+                insertarEnRaices(A[i]);
+            }
         }
     }
 
-    // ---- Extract-Min O(lg n) amortizado ----
-    Llave extraerMin() {
+    int extraerMin() {
         Nodo* z = min;
-        // hijos de z -> lista de raíces
-        if (z->hijo) {
+        if (z->hijo != nullptr) {
             vector<Nodo*> hijos;
             Nodo* c = z->hijo;
-            do { hijos.push_back(c); c = c->der; } while (c != z->hijo);
-            for (Nodo* h : hijos) { sacarDeLista(h); h->padre = nullptr; meterEnLista(min, h); }
+            do {
+                hijos.push_back(c);
+                c = c->right;
+            } while (c != z->hijo);
+            for (int i = 0; i < (int)hijos.size(); i++) {
+                sacarDeLista(hijos[i]);
+                hijos[i]->padre = nullptr;
+                meterEnLista(min, hijos[i]);
+            }
         }
-        if (z->der == z) min = nullptr;          // z era la única raíz
-        else {
-            min = z->der;
+        if (z->right == z) {
+            min = nullptr;
+        } else {
+            min = z->right;
             sacarDeLista(z);
             consolidate();
         }
         n--;
-        Llave r = z->llave;
+        int r = z->key;
         delete z;
         return r;
     }
 
-    // ---- Decrease-Key O(1) amortizado ----
     void cut(Nodo* x, Nodo* y) {
-        if (x->der == x) y->hijo = nullptr;
+        if (x->right == x) y->hijo = nullptr;
         else {
-            if (y->hijo == x) y->hijo = x->der;
+            if (y->hijo == x) y->hijo = x->right;
             sacarDeLista(x);
         }
         y->grado--;
         x->marca = false;
-        x->izq = x->der = x;
+        x->left = x;
+        x->right = x;
         insertarEnRaices(x);
     }
     void cascadingCut(Nodo* y) {
         Nodo* z = y->padre;
         if (z != nullptr) {
-            if (!y->marca) y->marca = true;      // primer hijo perdido: solo marcar
-            else { cut(y, z); cascadingCut(z); } // segundo: cortar y propagar
+            if (y->marca == false) {
+                y->marca = true;
+            }
+            else {
+                cut(y, z);
+                cascadingCut(z);
+            }
         }
     }
-    void decreaseKey(Nodo* x, Llave k) {
-        x->llave = k;
+    void decreaseKey(Nodo* x, int k) {
+        x->key = k;
         Nodo* y = x->padre;
-        if (y != nullptr && x->llave < y->llave) {
+        if (y != nullptr && x->key < y->key) {
             cut(x, y);
             cascadingCut(y);
         }
-        if (x->llave < min->llave) min = x;
+        if (x->key < min->key) min = x;
     }
 
-    void eliminar(Nodo* x) { decreaseKey(x, INT_MIN); extraerMin(); }
+    void eliminar(Nodo* x) {
+        decreaseKey(x, INT_MIN);
+        extraerMin();
+    }
 
     int numArboles() {
-        if (!min) return 0;
-        int t = 0; Nodo* x = min;
-        do { t++; x = x->der; } while (x != min);
+        if (min == nullptr) return 0;
+        int t = 0;
+        Nodo* p = min;
+        do {
+            t++;
+            p = p->right;
+        } while (p != min);
         return t;
     }
 };
@@ -174,16 +215,18 @@ struct FibHeap {
 int main() {
     FibHeap H;
     vector<Nodo*> h;
-    for (int x : {23, 7, 21, 3, 18, 52, 38, 39, 41, 17, 30, 24, 26, 46, 35}) h.push_back(H.insertar(x));
+    int a[15] = {23, 7, 21, 3, 18, 52, 38, 39, 41, 17, 30, 24, 26, 46, 35};
+    for (int i = 0; i < 15; i++) h.push_back(H.insertar(a[i]));
     cout << "tras 15 inserts: árboles en la raíz = " << H.numArboles() << " (no consolida)\n";
     cout << "extraerMin = " << H.extraerMin() << ", árboles tras consolidar = " << H.numArboles() << "\n";
 
-    H.decreaseKey(h[13], 15);   // 46 -> 15
-    H.decreaseKey(h[14], 5);    // 35 -> 5
-    H.eliminar(h[4]);           // borra 18
+    H.decreaseKey(h[13], 15);
+    H.decreaseKey(h[14], 5);
+    H.eliminar(h[4]);  // el 18
 
     FibHeap G;
-    G.insertar(4); G.insertar(100);
+    G.insertar(4);
+    G.insertar(100);
     H.unir(G);
 
     cout << "extraerMin: ";

@@ -1,6 +1,5 @@
 // range tree 2D
-// BST por x, cada nodo guarda los puntos de su subarbol ordenados por y
-// consulta O(lg^2 n + k), espacio O(n lg n)
+// arbol por x, cada nodo tiene sus puntos ordenados por y
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -10,93 +9,125 @@ using namespace std;
 struct Punto { int x, y, id; };
 
 struct NodoRT {
-    Punto p;                 // punto guardado en el nodo (mediana por x)
-    NodoRT* izq;
-    NodoRT* der;
-    vector<Punto> porY;      // puntos del subárbol (incluye p) ordenados por y
+    Punto p;
+    NodoRT* left;
+    NodoRT* right;
+    vector<Punto> porY;
 };
 
-bool menorY(const Punto& a, const Punto& b) { return a.y < b.y || (a.y == b.y && a.id < b.id); }
+bool menorY(const Punto& a, const Punto& b) {
+    if (a.y < b.y) return true;
+    if (a.y == b.y && a.id < b.id) return true;
+    return false;
+}
+
+bool menorX(const Punto& a, const Punto& b) { return a.x < b.x; }
 
 struct RangeTree2D {
     NodoRT* raiz = nullptr;
 
-    // a ordenado por x; devuelve el nodo y deja en "salida" sus puntos ordenados por y
     NodoRT* build(vector<Punto>& a, int l, int r) {
         if (l > r) return nullptr;
         int m = (l + r) / 2;
-        NodoRT* n = new NodoRT;
-        n->p = a[m];
-        n->izq = build(a, l, m - 1);
-        n->der = build(a, m + 1, r);
-        // merge de los hijos + el propio punto (como mergesort) -> O(n lg n) total
-        vector<Punto> L = n->izq ? n->izq->porY : vector<Punto>();
-        vector<Punto> R = n->der ? n->der->porY : vector<Punto>();
-        n->porY.resize(L.size() + R.size());
-        merge(L.begin(), L.end(), R.begin(), R.end(), n->porY.begin(), menorY);
-        n->porY.insert(upper_bound(n->porY.begin(), n->porY.end(), n->p, menorY), n->p);
-        return n;
+        NodoRT* q = new NodoRT;
+        q->p = a[m];
+        q->left = build(a, l, m - 1);
+        q->right = build(a, m + 1, r);
+        // merge de los hijos como en mergesort
+        vector<Punto> n1, n2;
+        if (q->left != nullptr) n1 = q->left->porY;
+        if (q->right != nullptr) n2 = q->right->porY;
+        q->porY.resize(n1.size() + n2.size());
+        merge(n1.begin(), n1.end(), n2.begin(), n2.end(), q->porY.begin(), menorY);
+        q->porY.insert(upper_bound(q->porY.begin(), q->porY.end(), q->p, menorY), q->p);
+        return q;
     }
     RangeTree2D(vector<Punto> pts) {
-        sort(pts.begin(), pts.end(), [](const Punto& a, const Punto& b) { return a.x < b.x; });
+        sort(pts.begin(), pts.end(), menorX);
         raiz = build(pts, 0, (int)pts.size() - 1);
     }
 
     NodoRT* split(int x1, int x2) {
         NodoRT* v = raiz;
-        while (v && (x2 < v->p.x || v->p.x < x1)) v = (x2 < v->p.x) ? v->izq : v->der;
+        while (v != nullptr && (x2 < v->p.x || v->p.x < x1)) {
+            if (x2 < v->p.x) v = v->left;
+            else v = v->right;
+        }
         return v;
     }
 
-    // ---- secundaria: búsqueda 1D por y en un subárbol completo ----
-    void reportarY(NodoRT* n, int y1, int y2, vector<Punto>& out) {
-        if (!n) return;
-        auto it = lower_bound(n->porY.begin(), n->porY.end(), Punto{0, y1, -1}, menorY);
-        for (; it != n->porY.end() && it->y <= y2; ++it) out.push_back(*it);
+    // busqueda en y
+    void reportarY(NodoRT* q, int y1, int y2, vector<Punto>& res) {
+        if (q == nullptr) return;
+        Punto aux = {0, y1, -1};
+        int i = lower_bound(q->porY.begin(), q->porY.end(), aux, menorY) - q->porY.begin();
+        while (i < (int)q->porY.size() && q->porY[i].y <= y2) {
+            res.push_back(q->porY[i]);
+            i++;
+        }
     }
-    int contarY(NodoRT* n, int y1, int y2) {
-        if (!n) return 0;
-        auto a = lower_bound(n->porY.begin(), n->porY.end(), Punto{0, y1, -1}, menorY);
-        auto b = upper_bound(n->porY.begin(), n->porY.end(), Punto{0, y2, 1 << 30}, menorY);
-        return (int)(b - a);
+    int contarY(NodoRT* q, int y1, int y2) {
+        if (q == nullptr) return 0;
+        Punto p1 = {0, y1, -1};
+        Punto p2 = {0, y2, 1 << 30};
+        int a = lower_bound(q->porY.begin(), q->porY.end(), p1, menorY) - q->porY.begin();
+        int b = upper_bound(q->porY.begin(), q->porY.end(), p2, menorY) - q->porY.begin();
+        return b - a;
     }
-    void revisarPunto(const Punto& p, int x1, int x2, int y1, int y2, vector<Punto>& out) {
-        if (x1 <= p.x && p.x <= x2 && y1 <= p.y && p.y <= y2) out.push_back(p);
+    bool dentro(const Punto& p, int x1, int x2, int y1, int y2) {
+        if (x1 <= p.x && p.x <= x2 && y1 <= p.y && p.y <= y2) return true;
+        return false;
+    }
+    void revisarPunto(const Punto& p, int x1, int x2, int y1, int y2, vector<Punto>& res) {
+        if (dentro(p, x1, x2, y1, y2)) res.push_back(p);
     }
 
     vector<Punto> reportar(int x1, int x2, int y1, int y2) {
-        vector<Punto> out;
+        vector<Punto> res;
         NodoRT* s = split(x1, x2);
-        if (!s) return out;
-        revisarPunto(s->p, x1, x2, y1, y2, out);
-        for (NodoRT* v = s->izq; v;) {                     // camino a x1
+        if (s == nullptr) return res;
+        revisarPunto(s->p, x1, x2, y1, y2, res);
+        NodoRT* v = s->left;
+        while (v != nullptr) {
             if (x1 <= v->p.x) {
-                revisarPunto(v->p, x1, x2, y1, y2, out);
-                reportarY(v->der, y1, y2, out);           // subárbol canónico
-                v = v->izq;
-            } else v = v->der;
+                revisarPunto(v->p, x1, x2, y1, y2, res);
+                reportarY(v->right, y1, y2, res);
+                v = v->left;
+            }
+            else v = v->right;
         }
-        for (NodoRT* v = s->der; v;) {                     // camino a x2
+        v = s->right;
+        while (v != nullptr) {
             if (v->p.x <= x2) {
-                revisarPunto(v->p, x1, x2, y1, y2, out);
-                reportarY(v->izq, y1, y2, out);
-                v = v->der;
-            } else v = v->izq;
+                revisarPunto(v->p, x1, x2, y1, y2, res);
+                reportarY(v->left, y1, y2, res);
+                v = v->right;
+            }
+            else v = v->left;
         }
-        return out;
+        return res;
     }
 
     int contar(int x1, int x2, int y1, int y2) {
         NodoRT* s = split(x1, x2);
-        if (!s) return 0;
+        if (s == nullptr) return 0;
         int c = 0;
-        auto dentro = [&](const Punto& p) { return x1 <= p.x && p.x <= x2 && y1 <= p.y && p.y <= y2; };
-        c += dentro(s->p);
-        for (NodoRT* v = s->izq; v;) {
-            if (x1 <= v->p.x) { c += dentro(v->p) + contarY(v->der, y1, y2); v = v->izq; } else v = v->der;
+        if (dentro(s->p, x1, x2, y1, y2)) c++;
+        NodoRT* v = s->left;
+        while (v) {
+            if (x1 <= v->p.x) {
+                if (dentro(v->p, x1, x2, y1, y2)) c++;
+                c += contarY(v->right, y1, y2);
+                v = v->left;
+            } else v = v->right;
         }
-        for (NodoRT* v = s->der; v;) {
-            if (v->p.x <= x2) { c += dentro(v->p) + contarY(v->izq, y1, y2); v = v->der; } else v = v->izq;
+        v = s->right;
+        while (v) {
+            if (v->p.x <= x2) {
+                if (dentro(v->p, x1, x2, y1, y2)) c++;
+                c += contarY(v->left, y1, y2);
+                v = v->right;
+            } else v = v->left;
         }
         return c;
     }
@@ -106,7 +137,8 @@ int main() {
     vector<Punto> pts = {{2, 7, 0}, {5, 3, 1}, {4, 9, 2}, {8, 5, 3}, {6, 6, 4}, {1, 1, 5}, {9, 8, 6}};
     RangeTree2D T(pts);
     cout << "[3,8] x [4,8]: ";
-    for (auto& p : T.reportar(3, 8, 4, 8)) cout << "(" << p.x << "," << p.y << ") ";
+    vector<Punto> res = T.reportar(3, 8, 4, 8);
+    for (int i = 0; i < (int)res.size(); i++) cout << "(" << res[i].x << "," << res[i].y << ") ";
     cout << " conteo=" << T.contar(3, 8, 4, 8) << "\n";
     return 0;
 }

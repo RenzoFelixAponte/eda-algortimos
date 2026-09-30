@@ -1,6 +1,6 @@
-// cola de prioridad (min) parcialmente retroactiva
+// cola de prioridad min parcialmente retroactiva
 // puente t': Q_t' esta contenido en Q_now
-// cada cambio en el pasado cambia Q_now en exactamente un elemento
+// cada cambio en el pasado cambia Q_now en un solo elemento
 #include <iostream>
 #include <vector>
 #include <map>
@@ -9,114 +9,169 @@
 #include <cstdlib>
 using namespace std;
 
-typedef double Tiempo;
-const Tiempo MENOS_INF = -1e18, MAS_INF = 1e18;
+const double MENOS_INF = -1e18, MAS_INF = 1e18;
 
-struct Op { bool esInsert; int k; };
+struct Op {
+    bool esInsert;
+    int k;
+};
 
 struct PQRetroactiva {
-    map<Tiempo, Op> ops;
+    map<double, Op> ops;
     set<int> Qnow;
 
-    // ---------- simulación: estado, qué borró cada delete-min y puentes ----------
     struct Sim {
-        map<Tiempo, int> borrado;        // tiempo de delete-min -> llave que borró
-        map<int, Tiempo> tInsert;        // llave -> tiempo en que se insertó
-        vector<Tiempo> puentes;          // ordenados, incluye -INF
+        map<double, int> borrado;  // tiempo del delete -> que borro
+        map<int, double> tInsert;
+        vector<double> puentes;
         set<int> final;
         bool valida = true;
     };
+
     Sim simular() const {
         Sim s;
         set<int> Q;
-        for (auto& [t, op] : ops) {
-            if (op.esInsert) { Q.insert(op.k); s.tInsert[op.k] = t; }
-            else if (Q.empty()) s.valida = false;
-            else { s.borrado[t] = *Q.begin(); Q.erase(Q.begin()); }
+        map<double, Op>::const_iterator it;
+        for (it = ops.begin(); it != ops.end(); it++) {
+            double t = it->first;
+            Op op = it->second;
+            if (op.esInsert) {
+                Q.insert(op.k);
+                s.tInsert[op.k] = t;
+            }
+            else if (Q.empty()) {
+                s.valida = false;
+            }
+            else {
+                s.borrado[t] = *Q.begin();
+                Q.erase(Q.begin());
+            }
         }
         s.final = Q;
-        // puentes: segunda pasada, Q_t ⊆ Q_final <=> # elementos de Q_t fuera de final == 0
+        // puentes
         s.puentes.push_back(MENOS_INF);
-        int fuera = 0; set<int> Q2;
-        for (auto& [t, op] : ops) {
-            if (op.esInsert) { Q2.insert(op.k); if (!s.final.count(op.k)) fuera++; }
-            else if (!Q2.empty()) { int x = *Q2.begin(); Q2.erase(Q2.begin()); if (!s.final.count(x)) fuera--; }
+        int fuera = 0;
+        set<int> Q2;
+        for (it = ops.begin(); it != ops.end(); it++) {
+            double t = it->first;
+            Op op = it->second;
+            if (op.esInsert) {
+                Q2.insert(op.k);
+                if (s.final.count(op.k) == 0) fuera++;
+            } else if (!Q2.empty()) {
+                int x = *Q2.begin();
+                Q2.erase(Q2.begin());
+                if (s.final.count(x) == 0) fuera--;
+            }
             if (fuera == 0) s.puentes.push_back(t);
         }
         return s;
     }
-    static Tiempo ultimoPuenteHasta(const Sim& s, Tiempo t, bool estricto) {
-        Tiempo r = MENOS_INF;
-        for (Tiempo p : s.puentes) if (estricto ? p < t : p <= t) r = p;
+    static double ultimoPuenteHasta(const Sim& s, double t, bool estricto) {
+        double r = MENOS_INF;
+        for (int i = 0; i < (int)s.puentes.size(); i++) {
+            double p = s.puentes[i];
+            if (estricto) {
+                if (p < t) r = p;
+            } else {
+                if (p <= t) r = p;
+            }
+        }
         return r;
     }
-    static Tiempo primerPuenteDesde(const Sim& s, Tiempo t) {
-        for (Tiempo p : s.puentes) if (p >= t) return p;
+    static double primerPuenteDesde(const Sim& s, double t) {
+        for (int i = 0; i < (int)s.puentes.size(); i++)
+            if (s.puentes[i] >= t) return s.puentes[i];
         return MAS_INF;
     }
-    static int maxBorradoDespues(const Sim& s, Tiempo t, int base) {
+    static int maxBorradoDespues(const Sim& s, double t, int base) {
         int m = base;
-        for (auto& [td, k] : s.borrado) if (td > t) m = max(m, k);
+        map<double, int>::const_iterator it;
+        for (it = s.borrado.begin(); it != s.borrado.end(); it++) {
+            if (it->first > t && it->second > m) m = it->second;
+        }
         return m;
     }
 
-    // ---------- operaciones retroactivas ----------
-    void insertarInsert(Tiempo t, int k) {
+    void insertarInsert(double t, int k) {
         Sim s = simular();
-        Tiempo tp = ultimoPuenteHasta(s, t, false);
+        double tp = ultimoPuenteHasta(s, t, false);
         Qnow.insert(maxBorradoDespues(s, tp, k));
-        ops[t] = {true, k};
+        Op op; op.esInsert = true; op.k = k;
+        ops[t] = op;
     }
-    void insertarDeleteMin(Tiempo t) {
+    void insertarDeleteMin(double t) {
         Sim s = simular();
-        // a = min(Q_t): lo que borraría el nuevo delete-min en su momento
+        // a = min de Q_t
         set<int> Qt;
-        for (auto& [tt, op] : ops) {
-            if (tt > t) break;
-            if (op.esInsert) Qt.insert(op.k); else if (!Qt.empty()) Qt.erase(Qt.begin());
+        for (map<double, Op>::iterator it = ops.begin(); it != ops.end(); it++) {
+            if (it->first > t) break;
+            if (it->second.esInsert) Qt.insert(it->second.k);
+            else if (!Qt.empty()) Qt.erase(Qt.begin());
         }
-        int a = Qt.empty() ? INT_MAX : *Qt.begin();
+        int a;
+        if (Qt.empty()) a = INT_MAX;
+        else a = *Qt.begin();
         int sale = INT_MAX;
-        if (Qnow.count(a)) sale = a;                        // a sobrevivía hasta hoy: sale a
+        if (Qnow.count(a) > 0) {
+            sale = a;
+        }
         else {
-            // a iba a ser borrado en d_a; ese delete-min ahora borra otra cosa (cascada)
-            Tiempo da = 0;
-            for (auto& [td, kk] : s.borrado) if (kk == a) da = td;
-            Tiempo tp = primerPuenteDesde(s, da);
-            for (int k : Qnow) if (s.tInsert[k] <= tp) { sale = k; break; }   // Qnow ordenado: primero = min
+            // cascada
+            double da = 0;
+            for (map<double, int>::iterator it = s.borrado.begin(); it != s.borrado.end(); it++)
+                if (it->second == a) da = it->first;
+            double tp = primerPuenteDesde(s, da);
+            for (set<int>::iterator it = Qnow.begin(); it != Qnow.end(); it++) {
+                if (s.tInsert[*it] <= tp) {
+                    sale = *it;
+                    break;
+                }
+            }
         }
         Qnow.erase(sale);
-        ops[t] = {false, 0};
+        Op op; op.esInsert = false; op.k = 0;
+        ops[t] = op;
     }
-    void borrarDeleteMin(Tiempo t) {
+    void borrarDeleteMin(double t) {
         Sim s = simular();
-        Tiempo tp = ultimoPuenteHasta(s, t, true);
+        double tp = ultimoPuenteHasta(s, t, true);
         Qnow.insert(maxBorradoDespues(s, tp, INT_MIN));
         ops.erase(t);
     }
-    void borrarInsert(Tiempo t) {
+    void borrarInsert(double t) {
         int k = ops[t].k;
-        if (Qnow.count(k)) { Qnow.erase(k); ops.erase(t); return; }
+        if (Qnow.count(k) > 0) {
+            Qnow.erase(k);
+            ops.erase(t);
+            return;
+        }
         Sim s = simular();
-        Tiempo tk = 0;
-        for (auto& [td, kk] : s.borrado) if (kk == k) tk = td;
-        ops.erase(t); ops.erase(tk);          // quitar el par no cambia Q_now
-        insertarDeleteMin(tk);                // y el delete-min vuelve a entrar en t_k
+        double tk = 0;
+        for (map<double, int>::iterator it = s.borrado.begin(); it != s.borrado.end(); it++)
+            if (it->second == k) tk = it->first;
+        ops.erase(t);
+        ops.erase(tk);
+        insertarDeleteMin(tk);
     }
     int minimoAhora() { return *Qnow.begin(); }
 };
+
+void mostrar(PQRetroactiva& P) {
+    for (set<int>::iterator it = P.Qnow.begin(); it != P.Qnow.end(); it++) cout << *it << " ";
+}
 
 int main() {
     PQRetroactiva P;
     P.insertarInsert(1, 50);
     P.insertarInsert(2, 30);
-    P.insertarDeleteMin(3);        // borra 30
+    P.insertarDeleteMin(3);
     P.insertarInsert(4, 40);
-    P.insertarDeleteMin(5);        // borra 40
-    cout << "Q_now: "; for (int k : P.Qnow) cout << k << " "; cout << "\n";
-    P.insertarInsert(0.5, 10);     // RETROACTIVO: el delete de t=3 ahora borra 10 -> cascada
-    cout << "tras Insert(0.5, insert 10): Q_now: "; for (int k : P.Qnow) cout << k << " "; cout << " (entró 40)\n";
-    P.insertarDeleteMin(0.7);      // RETROACTIVO
-    cout << "tras Insert(0.7, delete-min): Q_now: "; for (int k : P.Qnow) cout << k << " "; cout << "\n";
+    P.insertarDeleteMin(5);
+    cout << "Q_now: "; mostrar(P); cout << "\n";
+    P.insertarInsert(0.5, 10);  // retroactivo
+    cout << "tras Insert(0.5, insert 10): Q_now: "; mostrar(P); cout << " (entró 40)\n";
+    P.insertarDeleteMin(0.7);
+    cout << "tras Insert(0.7, delete-min): Q_now: "; mostrar(P); cout << "\n";
     return 0;
 }

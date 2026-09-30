@@ -1,71 +1,87 @@
-// fractional cascading: buscar x en k listas ordenadas en O(k + lg n)
-// M_i = L_i + uno de cada dos elementos de M_{i+1}, con punteros hacia abajo
+// fractional cascading
+// buscar x en k listas en O(k + lg n)
+// M_i = L_i + la mitad de M_{i+1}
 #include <iostream>
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
 using namespace std;
 
-typedef int Llave;
-
 struct FractionalCascading {
     int k;
-    vector<vector<Llave>> L;        // listas originales
-    vector<vector<Llave>> M;        // listas aumentadas
+    vector<vector<int>> L;
+    vector<vector<int>> M;
     vector<vector<int>> propio, baja;
-    long long pasosAtras = 0;       // para comprobar que es <= 1 por nivel
+    long long pasosAtras = 0;
 
-    FractionalCascading(const vector<vector<Llave>>& listas) : k((int)listas.size()), L(listas) {
-        M.resize(k); propio.resize(k); baja.resize(k);
+    FractionalCascading(const vector<vector<int>>& listas) {
+        k = listas.size();
+        L = listas;
+        M.resize(k);
+        propio.resize(k);
+        baja.resize(k);
         M[k - 1] = L[k - 1];
         for (int i = k - 2; i >= 0; i--) {
-            vector<Llave> promovidos;
-            for (int j = 1; j < (int)M[i + 1].size(); j += 2) promovidos.push_back(M[i + 1][j]);
-            M[i].resize(L[i].size() + promovidos.size());
-            merge(L[i].begin(), L[i].end(), promovidos.begin(), promovidos.end(), M[i].begin());
+            vector<int> aux;
+            for (int j = 1; j < (int)M[i + 1].size(); j = j + 2) aux.push_back(M[i + 1][j]);
+            M[i].resize(L[i].size() + aux.size());
+            merge(L[i].begin(), L[i].end(), aux.begin(), aux.end(), M[i].begin());
         }
-        // punteros (con merge lineal se hace en O(|M_i|); aquí con lower_bound por claridad)
+        // punteros (con lower_bound, mas facil)
         for (int i = 0; i < k; i++) {
-            for (Llave v : M[i]) {
-                propio[i].push_back((int)(lower_bound(L[i].begin(), L[i].end(), v) - L[i].begin()));
-                if (i + 1 < k)
-                    baja[i].push_back((int)(lower_bound(M[i + 1].begin(), M[i + 1].end(), v) - M[i + 1].begin()));
+            for (int j = 0; j < (int)M[i].size(); j++) {
+                int v = M[i][j];
+                int n1 = lower_bound(L[i].begin(), L[i].end(), v) - L[i].begin();
+                propio[i].push_back(n1);
+                if (i + 1 < k) {
+                    int n2 = lower_bound(M[i + 1].begin(), M[i + 1].end(), v) - M[i + 1].begin();
+                    baja[i].push_back(n2);
+                }
             }
         }
     }
 
-    // resp[i] = índice en L_i del primer elemento >= x (|L_i| si no hay)
-    vector<int> buscar(Llave x) {
-        vector<int> resp(k);
-        int p = (int)(lower_bound(M[0].begin(), M[0].end(), x) - M[0].begin());   // única binaria
+    // res[i] = indice del primer >= x en L_i
+    vector<int> buscar(int x) {
+        vector<int> res(k);
+        int p = lower_bound(M[0].begin(), M[0].end(), x) - M[0].begin();  // solo una binaria
         for (int i = 0; i < k; i++) {
-            resp[i] = (p == (int)M[i].size()) ? (int)L[i].size() : propio[i][p];
+            if (p == (int)M[i].size()) res[i] = L[i].size();
+            else res[i] = propio[i][p];
             if (i + 1 == k) break;
-            int q = (p == (int)M[i].size()) ? (int)M[i + 1].size() : baja[i][p];
-            while (q > 0 && M[i + 1][q - 1] >= x) { q--; pasosAtras++; }            // a lo mucho 1
+            int q;
+            if (p == (int)M[i].size()) q = M[i + 1].size();
+            else q = baja[i][p];
+            while (q > 0 && M[i + 1][q - 1] >= x) {
+                q--;
+                pasosAtras++;
+            }
             p = q;
         }
-        return resp;
+        return res;
     }
 };
 
 int main() {
-    // listas del ejemplo de clase
-    vector<vector<Llave>> listas = {
+    vector<vector<int>> listas = {
         {2, 5, 8, 12, 15},
         {3, 5, 9, 12, 18},
         {4, 9, 13, 18, 22}};
     FractionalCascading F(listas);
     for (int i = 0; i < F.k; i++) {
         cout << "M" << i + 1 << ": ";
-        for (Llave v : F.M[i]) cout << v << " ";
+        for (int j = 0; j < (int)F.M[i].size(); j++) cout << F.M[i][j] << " ";
         cout << "\n";
     }
-    Llave x = 9;
+    int x = 9;
     vector<int> r = F.buscar(x);
     cout << "sucesor de " << x << ": ";
-    for (int i = 0; i < F.k; i++)
-        cout << "L" << i + 1 << "->" << (r[i] < (int)listas[i].size() ? to_string(listas[i][r[i]]) : "none") << "  ";
+    for (int i = 0; i < F.k; i++) {
+        cout << "L" << i + 1 << "->";
+        if (r[i] < (int)listas[i].size()) cout << listas[i][r[i]];
+        else cout << "none";
+        cout << "  ";
+    }
     cout << "\n";
     return 0;
 }

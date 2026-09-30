@@ -1,123 +1,147 @@
 // BST persistente con path copying
-// solo se copian los nodos del camino raiz -> cambio, lo demas se comparte
-// raiz[v] = raiz de la version v. insertar/eliminar O(h)
+// se copian solo los nodos del camino, lo demas se comparte
 #include <iostream>
 #include <vector>
 #include <set>
 #include <cstdlib>
 using namespace std;
 
-long long nodosCreados = 0;   // para ver cuántos nodos copia cada operación
+long long cont = 0;   // nodos creados
 
 template <typename K>
 struct Nodo {
-    K llave;
-    Nodo* izq;
-    Nodo* der;
+    K key;
+    Nodo* left;
+    Nodo* right;
     int tam;
 };
 
 template <typename K>
-int tam(Nodo<K>* n) { return n ? n->tam : 0; }
+int tam(Nodo<K>* n) {
+    if (n == nullptr) return 0;
+    return n->tam;
+}
 
 template <typename K>
-Nodo<K>* crear(K llave, Nodo<K>* izq, Nodo<K>* der) {
-    nodosCreados++;
-    return new Nodo<K>{llave, izq, der, 1 + tam(izq) + tam(der)};
+Nodo<K>* crear(K key, Nodo<K>* l, Nodo<K>* r) {
+    cont++;
+    Nodo<K>* p = new Nodo<K>;
+    p->key = key;
+    p->left = l;
+    p->right = r;
+    p->tam = 1 + tam(l) + tam(r);
+    return p;
 }
 
 template <typename K>
 struct BSTPersistente {
     vector<Nodo<K>*> raiz;
 
-    BSTPersistente() { raiz.push_back(nullptr); }   // versión 0 = vacío
+    BSTPersistente() { raiz.push_back(nullptr); }
 
     int nuevaVersion(Nodo<K>* r) {
         raiz.push_back(r);
         return (int)raiz.size() - 1;
     }
 
-    // ---------- insertar ----------
-    Nodo<K>* insertarRec(Nodo<K>* n, K x) {
-        if (n == nullptr) return crear<K>(x, nullptr, nullptr);
-        if (x == n->llave) return n;                       // ya existe: nada cambia
-        if (x < n->llave) {
-            Nodo<K>* h = insertarRec(n->izq, x);
-            if (h == n->izq) return n;
-            return crear<K>(n->llave, h, n->der);          // copia del nodo del camino
-        } else {
-            Nodo<K>* h = insertarRec(n->der, x);
-            if (h == n->der) return n;
-            return crear<K>(n->llave, n->izq, h);
+    Nodo<K>* insertarRec(Nodo<K>* p, K x) {
+        if (p == nullptr) return crear<K>(x, nullptr, nullptr);
+        if (x == p->key) return p;   // ya esta
+        if (x < p->key) {
+            Nodo<K>* aux = insertarRec(p->left, x);
+            if (aux == p->left) return p;
+            return crear<K>(p->key, aux, p->right);
+        }
+        else {
+            Nodo<K>* aux = insertarRec(p->right, x);
+            if (aux == p->right) return p;
+            return crear<K>(p->key, p->left, aux);
         }
     }
-    int insertar(int v, K x) { return nuevaVersion(insertarRec(raiz[v], x)); }
+    int insertar(int v, K x) {
+        Nodo<K>* r = insertarRec(raiz[v], x);
+        return nuevaVersion(r);
+    }
 
-    // ---------- eliminar ----------
-    Nodo<K>* eliminarRec(Nodo<K>* n, K x) {
-        if (n == nullptr) return nullptr;                  // no estaba
-        if (x < n->llave) {
-            Nodo<K>* h = eliminarRec(n->izq, x);
-            if (h == n->izq) return n;
-            return crear<K>(n->llave, h, n->der);
+    Nodo<K>* eliminarRec(Nodo<K>* p, K x) {
+        if (p == nullptr) return nullptr;
+        if (x < p->key) {
+            Nodo<K>* aux = eliminarRec(p->left, x);
+            if (aux == p->left) return p;
+            return crear<K>(p->key, aux, p->right);
         }
-        if (n->llave < x) {
-            Nodo<K>* h = eliminarRec(n->der, x);
-            if (h == n->der) return n;
-            return crear<K>(n->llave, n->izq, h);
+        if (p->key < x) {
+            Nodo<K>* aux = eliminarRec(p->right, x);
+            if (aux == p->right) return p;
+            return crear<K>(p->key, p->left, aux);
         }
-        // x == n->llave
-        if (n->izq == nullptr) return n->der;              // se comparte el hijo
-        if (n->der == nullptr) return n->izq;
-        Nodo<K>* s = n->der;                               // sucesor = mínimo de la derecha
-        while (s->izq != nullptr) s = s->izq;
-        return crear<K>(s->llave, n->izq, eliminarRec(n->der, s->llave));
+        // lo encontre
+        if (p->left == nullptr) return p->right;
+        if (p->right == nullptr) return p->left;
+        // 2 hijos, busco el sucesor
+        Nodo<K>* q = p->right;
+        while (q->left != nullptr) {
+            q = q->left;
+        }
+        Nodo<K>* nuevoDer = eliminarRec(p->right, q->key);
+        return crear<K>(q->key, p->left, nuevoDer);
     }
     int eliminar(int v, K x) { return nuevaVersion(eliminarRec(raiz[v], x)); }
 
-    // ---------- consultas (no crean versión) ----------
     bool buscar(int v, K x) {
-        Nodo<K>* n = raiz[v];
-        while (n != nullptr) {
-            if (x == n->llave) return true;
-            n = (x < n->llave) ? n->izq : n->der;
+        Nodo<K>* p = raiz[v];
+        while (p != nullptr) {
+            if (x == p->key) return true;
+            if (x < p->key) p = p->left;
+            else p = p->right;
         }
         return false;
     }
 
-    // k-ésimo menor (k desde 1)
+    // k-esimo menor, k empieza en 1
     K kesimo(int v, int k) {
-        Nodo<K>* n = raiz[v];
+        Nodo<K>* p = raiz[v];
         while (true) {
-            int ti = tam(n->izq);
-            if (k == ti + 1) return n->llave;
-            if (k <= ti) n = n->izq;
-            else { k -= ti + 1; n = n->der; }
+            int n1 = tam(p->left);
+            if (k == n1 + 1) return p->key;
+            if (k <= n1) {
+                p = p->left;
+            } else {
+                k = k - (n1 + 1);
+                p = p->right;
+            }
         }
     }
 
-    // cuántas llaves < x
     int contarMenores(int v, K x) {
         int c = 0;
-        Nodo<K>* n = raiz[v];
-        while (n != nullptr) {
-            if (n->llave < x) { c += tam(n->izq) + 1; n = n->der; }
-            else n = n->izq;
+        Nodo<K>* p = raiz[v];
+        while (p != nullptr) {
+            if (p->key < x) {
+                c = c + tam(p->left) + 1;
+                p = p->right;
+            }
+            else p = p->left;
         }
         return c;
     }
 
-    void inordenRec(Nodo<K>* n, vector<K>& out) {
-        if (!n) return;
-        inordenRec(n->izq, out);
-        out.push_back(n->llave);
-        inordenRec(n->der, out);
+    void inordenRec(Nodo<K>* p, vector<K>& res) {
+        if (p == nullptr) return;
+        inordenRec(p->left, res);
+        res.push_back(p->key);
+        inordenRec(p->right, res);
     }
-    vector<K> inorden(int v) { vector<K> out; inordenRec(raiz[v], out); return out; }
+    vector<K> inorden(int v) {
+        vector<K> res;
+        inordenRec(raiz[v], res);
+        return res;
+    }
 
     void imprimir(int v) {
         cout << "v" << v << ": ";
-        for (K x : inorden(v)) cout << x << " ";
+        vector<K> res = inorden(v);
+        for (int i = 0; i < (int)res.size(); i++) cout << res[i] << " ";
         cout << "\n";
     }
 };
@@ -129,13 +153,14 @@ int main() {
     int v2 = T.insertar(v1, 30);
     int v3 = T.insertar(v2, 70);
     int v4 = T.insertar(v3, 20);
-    long long antes = nodosCreados;
+    long long antes = cont;
     int v5 = T.insertar(v4, 40);
-    cout << "insertar 40 copió " << nodosCreados - antes << " nodos (camino 50 -> 30 -> 40)\n";
-    int v6 = T.eliminar(v5, 30);        // caso 2 hijos
-    int v7 = T.insertar(v2, 10);        // rama desde v2 => persistencia total
+    cout << "insertar 40 copió " << cont - antes << " nodos (camino 50 -> 30 -> 40)\n";
+    int v6 = T.eliminar(v5, 30);
+    int v7 = T.insertar(v2, 10);  // desde v2
 
-    for (int v : {v1, v2, v3, v4, v5, v6, v7}) T.imprimir(v);
+    int vs[7] = {v1, v2, v3, v4, v5, v6, v7};
+    for (int i = 0; i < 7; i++) T.imprimir(vs[i]);
     cout << "v6 buscar(30)=" << T.buscar(v6, 30) << "  v5 buscar(30)=" << T.buscar(v5, 30) << "\n";
     cout << "v5: 2do menor=" << T.kesimo(v5, 2) << "  menores que 45=" << T.contarMenores(v5, 45) << "\n";
     return 0;

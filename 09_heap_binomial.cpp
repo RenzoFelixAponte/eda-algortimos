@@ -1,147 +1,179 @@
-// monticulo binomial (min)
-// a lo mucho un arbol B_k de cada grado, como los bits de n
-// insertar O(1) amortizado (como incrementar un contador binario)
+// heap binomial (min)
+// maximo un arbol de cada grado, como los bits de n
 #include <iostream>
 #include <vector>
 #include <climits>
 #include <algorithm>
 using namespace std;
 
-typedef int Llave;
 long long links = 0;
 
 struct NodoB {
-    Llave llave;
+    int key;
     int grado;
     NodoB* padre;
-    NodoB* hijo;       // hijo de MAYOR grado
-    NodoB* hermano;    // siguiente en la lista (raíces o hermanos)
+    NodoB* hijo;     // el de mayor grado
+    NodoB* hermano;
 };
 
 struct HeapBinomial {
-    NodoB* cabeza = nullptr;   // lista de raíces, grados crecientes
+    NodoB* cabeza = nullptr;
     int n = 0;
 
-    static void link(NodoB* y, NodoB* z) {   // y hijo de z (y->llave >= z->llave)
+    // y pasa a ser hijo de z
+    static void link(NodoB* y, NodoB* z) {
         links++;
         y->padre = z;
         y->hermano = z->hijo;
         z->hijo = y;
-        z->grado++;
+        z->grado = z->grado + 1;
     }
 
-    // mezcla dos listas de raíces por grado (como merge de mergesort)
+    // merge por grado
     static NodoB* mezclarListas(NodoB* a, NodoB* b) {
-        NodoB cab{0, 0, nullptr, nullptr, nullptr};
-        NodoB* t = &cab;
-        while (a && b) {
-            if (a->grado <= b->grado) { t->hermano = a; a = a->hermano; }
-            else                      { t->hermano = b; b = b->hermano; }
-            t = t->hermano;
+        NodoB cab;
+        cab.key = 0; cab.grado = 0;
+        cab.padre = nullptr; cab.hijo = nullptr; cab.hermano = nullptr;
+        NodoB* p = &cab;
+        while (a != nullptr && b != nullptr) {
+            if (a->grado <= b->grado) {
+                p->hermano = a;
+                a = a->hermano;
+            }
+            else {
+                p->hermano = b;
+                b = b->hermano;
+            }
+            p = p->hermano;
         }
-        t->hermano = a ? a : b;
+        if (a != nullptr) p->hermano = a;
+        else p->hermano = b;
         return cab.hermano;
     }
 
     static NodoB* unirListas(NodoB* a, NodoB* b) {
         NodoB* h = mezclarListas(a, b);
-        if (!h) return nullptr;
+        if (h == nullptr) return nullptr;
         NodoB* prev = nullptr;
-        NodoB* x = h;
-        NodoB* sig = x->hermano;
-        while (sig) {
-            if (x->grado != sig->grado ||
-                (sig->hermano && sig->hermano->grado == x->grado)) {
-                prev = x; x = sig;                      // avanzar
-            } else if (x->llave <= sig->llave) {
-                x->hermano = sig->hermano;              // sig bajo x
-                link(sig, x);
+        NodoB* p = h;
+        NodoB* q = p->hermano;
+        while (q != nullptr) {
+            if (p->grado != q->grado || (q->hermano != nullptr && q->hermano->grado == p->grado)) {
+                prev = p;
+                p = q;
+            } else if (p->key <= q->key) {
+                p->hermano = q->hermano;
+                link(q, p);
             } else {
-                if (!prev) h = sig; else prev->hermano = sig;
-                link(x, sig);                           // x bajo sig
-                x = sig;
+                if (prev == nullptr) h = q;
+                else prev->hermano = q;
+                link(p, q);
+                p = q;
             }
-            sig = x->hermano;
+            q = p->hermano;
         }
         return h;
     }
 
-    void unir(HeapBinomial& otro) {       // destruye "otro"
+    void unir(HeapBinomial& otro) {
         cabeza = unirListas(cabeza, otro.cabeza);
-        n += otro.n;
-        otro.cabeza = nullptr; otro.n = 0;
+        n = n + otro.n;
+        otro.cabeza = nullptr;
+        otro.n = 0;
     }
 
-    NodoB* insertar(Llave x) {
-        NodoB* nodo = new NodoB{x, 0, nullptr, nullptr, nullptr};
-        cabeza = unirListas(cabeza, nodo);
+    NodoB* insertar(int x) {
+        NodoB* p = new NodoB;
+        p->key = x; p->grado = 0;
+        p->padre = nullptr; p->hijo = nullptr; p->hermano = nullptr;
+        cabeza = unirListas(cabeza, p);
         n++;
-        return nodo;
+        return p;
     }
 
     NodoB* raizMin(NodoB** prevOut) {
-        NodoB *mejor = cabeza, *prevMejor = nullptr, *prev = nullptr;
-        for (NodoB* x = cabeza; x; prev = x, x = x->hermano)
-            if (x->llave < mejor->llave) { mejor = x; prevMejor = prev; }
-        if (prevOut) *prevOut = prevMejor;
+        NodoB* mejor = cabeza;
+        NodoB* prevMejor = nullptr;
+        NodoB* prev = nullptr;
+        NodoB* p = cabeza;
+        while (p != nullptr) {
+            if (p->key < mejor->key) {
+                mejor = p;
+                prevMejor = prev;
+            }
+            prev = p;
+            p = p->hermano;
+        }
+        if (prevOut != nullptr) *prevOut = prevMejor;
         return mejor;
     }
-    Llave minimo() { return raizMin(nullptr)->llave; }
+    int minimo() { return raizMin(nullptr)->key; }
     bool vacio() { return cabeza == nullptr; }
 
-    Llave extraerMin() {
+    int extraerMin() {
         NodoB* prev;
         NodoB* m = raizMin(&prev);
-        if (!prev) cabeza = m->hermano; else prev->hermano = m->hermano;
-        // hijos de m están en grado decreciente -> invertir
+        if (prev == nullptr) cabeza = m->hermano;
+        else prev->hermano = m->hermano;
+        // invertir hijos
         NodoB* inv = nullptr;
-        for (NodoB* c = m->hijo; c;) {
+        NodoB* c = m->hijo;
+        while (c != nullptr) {
             NodoB* s = c->hermano;
-            c->hermano = inv; c->padre = nullptr;
-            inv = c; c = s;
+            c->hermano = inv;
+            c->padre = nullptr;
+            inv = c;
+            c = s;
         }
         cabeza = unirListas(cabeza, inv);
         n--;
-        Llave r = m->llave;
+        int r = m->key;
         delete m;
         return r;
     }
 
-    // OJO: intercambia LLAVES, así que el puntero "x" puede quedar con otra llave.
-    // Si necesitas handles estables, guarda un campo "dato" y muévelo junto a la llave.
-    void decreaseKey(NodoB* x, Llave k) {
-        x->llave = k;
-        NodoB* y = x;
-        NodoB* z = y->padre;
-        while (z && y->llave < z->llave) {
-            swap(y->llave, z->llave);
-            y = z; z = y->padre;
+    // ojo: cambia las llaves, no los nodos
+    void decreaseKey(NodoB* x, int k) {
+        x->key = k;
+        NodoB* p = x;
+        NodoB* q = p->padre;
+        while (q != nullptr && p->key < q->key) {
+            int aux = p->key;
+            p->key = q->key;
+            q->key = aux;
+            p = q;
+            q = p->padre;
         }
     }
-    void eliminar(NodoB* x) { decreaseKey(x, INT_MIN); extraerMin(); }
+    void eliminar(NodoB* x) {
+        decreaseKey(x, INT_MIN);
+        extraerMin();
+    }
 
     void imprimirRaices() {
         cout << "raíces (grado:llave): ";
-        for (NodoB* x = cabeza; x; x = x->hermano) cout << "B" << x->grado << ":" << x->llave << " ";
+        for (NodoB* p = cabeza; p != nullptr; p = p->hermano)
+            cout << "B" << p->grado << ":" << p->key << " ";
         cout << " | n=" << n << "\n";
     }
 };
 
 int main() {
     HeapBinomial H;
-    for (int x : {10, 3, 7, 1, 8, 12, 5}) H.insertar(x);   // n = 7 = 111b -> B0, B1, B2
+    int a[7] = {10, 3, 7, 1, 8, 12, 5};
+    for (int i = 0; i < 7; i++) H.insertar(a[i]);
     H.imprimirRaices();
 
     HeapBinomial G;
-    for (int x : {6, 2, 9}) G.insertar(x);
-    H.unir(G);                                              // n = 10 = 1010b -> B1, B3
+    G.insertar(6); G.insertar(2); G.insertar(9);
+    H.unir(G);
     H.imprimirRaices();
 
     cout << "extraerMin: ";
     while (!H.vacio()) cout << H.extraerMin() << " ";
     cout << "\n";
 
-    // Insert O(1) amortizado: links totales / n inserciones < 1
+    // links / n deberia ser < 1
     HeapBinomial B;
     links = 0;
     int N = 1000000;

@@ -1,5 +1,5 @@
-// aplicaciones del segment tree persistente: una version por prefijo
-// (A) cantidad de distintos en [l,r]  (B) k-esimo menor en [l,r]  (C) cuantos <= x en [l,r]
+// aplicaciones de segment tree persistente (una version por prefijo)
+// distintos en [l,r], k-esimo menor, cuantos <= x
 #include <iostream>
 #include <vector>
 #include <map>
@@ -8,94 +8,112 @@ using namespace std;
 
 struct NodoC {
     int cnt;
-    NodoC* izq;
-    NodoC* der;
+    NodoC* left;
+    NodoC* right;
 };
 
-// nodo "vacío" compartido: sus hijos se apuntan a sí mismo => no hace falta build
+// nodo vacio que se apunta a si mismo, asi no hay que hacer build
 NodoC* NULO = nullptr;
 void initNulo() {
-    NULO = new NodoC{0, nullptr, nullptr};
-    NULO->izq = NULO->der = NULO;
+    NULO = new NodoC;
+    NULO->cnt = 0;
+    NULO->left = NULO;
+    NULO->right = NULO;
 }
 
-// suma "delta" en la posición pos (path copying)
-NodoC* sumar(NodoC* nodo, int l, int r, int pos, int delta) {
-    NodoC* c = new NodoC{nodo->cnt + delta, nodo->izq, nodo->der};
-    if (l == r) return c;
+NodoC* sumar(NodoC* p, int l, int r, int pos, int d) {
+    NodoC* q = new NodoC;
+    q->cnt = p->cnt + d;
+    q->left = p->left;
+    q->right = p->right;
+    if (l == r) return q;
     int m = (l + r) / 2;
-    if (pos <= m) c->izq = sumar(nodo->izq, l, m, pos, delta);
-    else          c->der = sumar(nodo->der, m + 1, r, pos, delta);
-    return c;
+    if (pos <= m) q->left = sumar(p->left, l, m, pos, d);
+    else q->right = sumar(p->right, m + 1, r, pos, d);
+    return q;
 }
 
-int suma(NodoC* nodo, int l, int r, int ql, int qr) {
-    if (nodo == NULO || qr < l || r < ql) return 0;
-    if (ql <= l && r <= qr) return nodo->cnt;
+int suma(NodoC* p, int l, int r, int ql, int qr) {
+    if (p == NULO) return 0;
+    if (qr < l || r < ql) return 0;
+    if (ql <= l && r <= qr) return p->cnt;
     int m = (l + r) / 2;
-    return suma(nodo->izq, l, m, ql, qr) + suma(nodo->der, m + 1, r, ql, qr);
+    return suma(p->left, l, m, ql, qr) + suma(p->right, m + 1, r, ql, qr);
 }
 
-// ---------------- (A) distintos en [l, r] ----------------
+// distintos
 struct Distintos {
     int n;
     vector<NodoC*> raiz;
     Distintos(const vector<int>& a) {
-        n = (int)a.size();
+        n = a.size();
         raiz.push_back(NULO);
-        map<int, int> ult;                       // valor -> última posición vista
+        map<int, int> ult;  // ultima posicion de cada valor
         for (int i = 0; i < n; i++) {
-            NodoC* r = raiz.back();
-            if (ult.count(a[i])) r = sumar(r, 0, n - 1, ult[a[i]], -1);
-            r = sumar(r, 0, n - 1, i, +1);
+            NodoC* p = raiz.back();
+            if (ult.count(a[i]) > 0) {
+                p = sumar(p, 0, n - 1, ult[a[i]], -1);
+            }
+            p = sumar(p, 0, n - 1, i, 1);
             ult[a[i]] = i;
-            raiz.push_back(r);
+            raiz.push_back(p);
         }
     }
-    int consulta(int l, int r) { return suma(raiz[r + 1], 0, n - 1, l, r); }
+    int consulta(int l, int r) {
+        return suma(raiz[r + 1], 0, n - 1, l, r);
+    }
 };
 
-// ---------------- (B)(C) k-ésimo menor / contar <= x ----------------
+// kesimo y contar
 struct KEsimo {
     int n, m;
-    vector<int> vals;                            // valores ordenados sin repetir
+    vector<int> vals;
     vector<NodoC*> raiz;
     KEsimo(const vector<int>& a) {
-        n = (int)a.size();
+        n = a.size();
         vals = a;
         sort(vals.begin(), vals.end());
         vals.erase(unique(vals.begin(), vals.end()), vals.end());
-        m = (int)vals.size();
+        m = vals.size();
         raiz.push_back(NULO);
         for (int i = 0; i < n; i++) {
             int id = lower_bound(vals.begin(), vals.end(), a[i]) - vals.begin();
-            raiz.push_back(sumar(raiz.back(), 0, m - 1, id, +1));
+            NodoC* p = sumar(raiz.back(), 0, m - 1, id, 1);
+            raiz.push_back(p);
         }
     }
-    // k desde 1
     int kesimo(int l, int r, int k) {
-        NodoC* A = raiz[r + 1];
-        NodoC* B = raiz[l];
+        NodoC* p = raiz[r + 1];
+        NodoC* q = raiz[l];
         int lo = 0, hi = m - 1;
         while (lo < hi) {
             int mid = (lo + hi) / 2;
-            int enIzq = A->izq->cnt - B->izq->cnt;   // cuántos de a[l..r] caen en [lo, mid]
-            if (k <= enIzq) { A = A->izq; B = B->izq; hi = mid; }
-            else { k -= enIzq; A = A->der; B = B->der; lo = mid + 1; }
+            int aux = p->left->cnt - q->left->cnt;
+            if (k <= aux) {
+                p = p->left;
+                q = q->left;
+                hi = mid;
+            } else {
+                k = k - aux;
+                p = p->right;
+                q = q->right;
+                lo = mid + 1;
+            }
         }
         return vals[lo];
     }
     int contarMenoresIguales(int l, int r, int x) {
         int id = upper_bound(vals.begin(), vals.end(), x) - vals.begin() - 1;
         if (id < 0) return 0;
-        return suma(raiz[r + 1], 0, m - 1, 0, id) - suma(raiz[l], 0, m - 1, 0, id);
+        int n1 = suma(raiz[r + 1], 0, m - 1, 0, id);
+        int n2 = suma(raiz[l], 0, m - 1, 0, id);
+        return n1 - n2;
     }
 };
 
 int main() {
     initNulo();
     vector<int> a = {1, 2, 1, 3, 2, 2, 4, 1};
-    //               0  1  2  3  4  5  6  7
 
     Distintos D(a);
     cout << "distintos [0,7]=" << D.consulta(0, 7) << "  [1,3]=" << D.consulta(1, 3)

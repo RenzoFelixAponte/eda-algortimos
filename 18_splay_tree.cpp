@@ -1,19 +1,17 @@
-// splay tree: cada acceso sube el nodo a la raiz
-// zig (padre es raiz), zig-zig (misma direccion), zig-zag (direcciones opuestas)
-// O(lg n) amortizado
+// splay tree
+// zig, zig-zig, zig-zag
 #include <iostream>
 #include <vector>
 #include <set>
 #include <cstdlib>
 using namespace std;
 
-typedef int Llave;
 long long rotaciones = 0;
 
 struct NodoS {
-    Llave llave;
-    NodoS* izq;
-    NodoS* der;
+    int key;
+    NodoS* left;
+    NodoS* right;
     NodoS* padre;
 };
 
@@ -21,98 +19,133 @@ struct SplayTree {
     NodoS* raiz = nullptr;
     int n = 0;
 
-    // rota x con su padre (x sube un nivel)
+    // sube x un nivel
     void rotar(NodoS* x) {
         rotaciones++;
         NodoS* p = x->padre;
         NodoS* g = p->padre;
-        if (p->izq == x) {               // rotación derecha
-            p->izq = x->der;
-            if (x->der) x->der->padre = p;
-            x->der = p;
-        } else {                         // rotación izquierda
-            p->der = x->izq;
-            if (x->izq) x->izq->padre = p;
-            x->izq = p;
+        if (p->left == x) {
+            p->left = x->right;
+            if (x->right != nullptr) x->right->padre = p;
+            x->right = p;
+        }
+        else {
+            p->right = x->left;
+            if (x->left != nullptr) x->left->padre = p;
+            x->left = p;
         }
         p->padre = x;
         x->padre = g;
-        if (!g) raiz = x;
-        else if (g->izq == p) g->izq = x;
-        else g->der = x;
+        if (g == nullptr) raiz = x;
+        else if (g->left == p) g->left = x;
+        else g->right = x;
     }
 
     void splay(NodoS* x) {
-        while (x->padre) {
+        while (x->padre != nullptr) {
             NodoS* p = x->padre;
             NodoS* g = p->padre;
-            if (!g) rotar(x);                                       // Zig
-            else if ((g->izq == p) == (p->izq == x)) { rotar(p); rotar(x); }  // Zig-Zig
-            else { rotar(x); rotar(x); }                            // Zig-Zag
+            if (g == nullptr) {
+                rotar(x);  // zig
+            }
+            else {
+                bool n1 = (g->left == p);
+                bool n2 = (p->left == x);
+                if (n1 == n2) {
+                    // zig zig
+                    rotar(p);
+                    rotar(x);
+                } else {
+                    rotar(x);
+                    rotar(x);
+                }
+            }
         }
     }
 
-    // busca x; hace splay del último nodo visitado (aunque no esté x)
-    bool buscar(Llave x) {
-        NodoS* v = raiz; NodoS* ult = nullptr;
-        while (v) {
-            ult = v;
-            if (x == v->llave) break;
-            v = (x < v->llave) ? v->izq : v->der;
+    bool buscar(int x) {
+        NodoS* p = raiz;
+        NodoS* ult = nullptr;
+        while (p != nullptr) {
+            ult = p;
+            if (x == p->key) break;
+            if (x < p->key) p = p->left;
+            else p = p->right;
         }
-        if (ult) splay(ult);
-        return v != nullptr;
+        if (ult != nullptr) splay(ult);
+        return p != nullptr;
     }
 
-    void insertar(Llave x) {
-        NodoS* v = raiz; NodoS* p = nullptr;
-        while (v) {
-            p = v;
-            if (x == v->llave) { splay(v); return; }
-            v = (x < v->llave) ? v->izq : v->der;
+    void insertar(int x) {
+        NodoS* p = raiz;
+        NodoS* q = nullptr;
+        while (p != nullptr) {
+            q = p;
+            if (x == p->key) {
+                splay(p);
+                return;
+            }
+            if (x < p->key) p = p->left;
+            else p = p->right;
         }
-        NodoS* nuevo = new NodoS{x, nullptr, nullptr, p};
-        if (!p) raiz = nuevo;
-        else if (x < p->llave) p->izq = nuevo;
-        else p->der = nuevo;
+        NodoS* aux = new NodoS;
+        aux->key = x;
+        aux->left = nullptr;
+        aux->right = nullptr;
+        aux->padre = q;
+        if (q == nullptr) raiz = aux;
+        else if (x < q->key) q->left = aux;
+        else q->right = aux;
         n++;
-        splay(nuevo);
+        splay(aux);
     }
 
-    void eliminar(Llave x) {
-        if (!buscar(x)) return;                  // x queda en la raíz
+    void eliminar(int x) {
+        if (!buscar(x)) return;  // x queda en la raiz
         NodoS* r = raiz;
-        NodoS* L = r->izq; NodoS* R = r->der;
-        if (L) L->padre = nullptr;
-        if (R) R->padre = nullptr;
-        delete r; n--;
-        if (!L) { raiz = R; return; }
-        // el máximo de L sube a la raíz de L (no tendrá hijo derecho) y se cuelga R
+        NodoS* L = r->left;
+        NodoS* R = r->right;
+        if (L != nullptr) L->padre = nullptr;
+        if (R != nullptr) R->padre = nullptr;
+        delete r;
+        n--;
+        if (L == nullptr) {
+            raiz = R;
+            return;
+        }
         raiz = L;
         NodoS* m = L;
-        while (m->der) m = m->der;
+        while (m->right != nullptr) m = m->right;
         splay(m);
-        m->der = R;
+        m->right = R;
         if (R) R->padre = m;
     }
 
-    int profundidad(Llave x) {
+    int profundidad(int x) {
         int d = 0;
-        for (NodoS* v = raiz; v; v = (x < v->llave) ? v->izq : v->der, d++)
-            if (v->llave == x) return d;
+        NodoS* p = raiz;
+        while (p != nullptr) {
+            if (p->key == x) return d;
+            if (x < p->key) p = p->left;
+            else p = p->right;
+            d++;
+        }
         return -1;
     }
-    void inorden(NodoS* v, vector<Llave>& out) {
-        if (!v) return;
-        inorden(v->izq, out); out.push_back(v->llave); inorden(v->der, out);
+    void inorden(NodoS* p, vector<int>& res) {
+        if (p == nullptr) return;
+        inorden(p->left, res);
+        res.push_back(p->key);
+        inorden(p->right, res);
     }
 };
 
 int main() {
     SplayTree T;
-    for (int x : {10, 20, 30, 40, 50}) T.insertar(x);   // insertar en orden deja una "línea"
-    cout << "raíz tras insertar 10..50 = " << T.raiz->llave << ", profundidad de 10 = " << T.profundidad(10) << "\n";
+    int a[5] = {10, 20, 30, 40, 50};
+    for (int i = 0; i < 5; i++) T.insertar(a[i]);
+    cout << "raíz tras insertar 10..50 = " << T.raiz->key << ", profundidad de 10 = " << T.profundidad(10) << "\n";
     T.buscar(10);
-    cout << "tras buscar(10): raíz = " << T.raiz->llave << ", profundidad de 50 = " << T.profundidad(50) << "\n";
+    cout << "tras buscar(10): raíz = " << T.raiz->key << ", profundidad de 50 = " << T.profundidad(50) << "\n";
     return 0;
 }

@@ -1,7 +1,6 @@
-// BST con persistencia parcial usando nodos gordos (DSST)
-// cada nodo: campos originales + log de 2p cambios (campo, valor, tiempo)
-// si el log se llena -> split: nodo nuevo con los valores actuales y se redirige al padre
-// en un BST p = 1 (solo el padre apunta al nodo)
+// BST parcialmente persistente con nodos gordos
+// cada nodo tiene un log de 2p cambios, si se llena se hace split
+// en BST p = 1
 #include <iostream>
 #include <vector>
 #include <set>
@@ -9,11 +8,11 @@
 #include <cstdlib>
 using namespace std;
 
-typedef int Llave;                 // cambia aquí el tipo de llave
+typedef int Dato;
 
-const int P = 1;                   // punteros entrantes máximos por nodo
-const int MAX_LOG = 2 * P;         // tamaño del log (2p)
-const int INF_T = INT_MAX;         // "tiempo infinito" = versión más reciente
+const int P = 1;
+const int MAX_LOG = 2 * P;
+const int INF_T = INT_MAX;
 
 enum Campo { LLAVE, IZQ, DER };
 
@@ -21,181 +20,197 @@ struct NodoG;
 
 struct Mod {
     Campo campo;
-    Llave llave;       // se usa si campo == LLAVE
-    NodoG* ptr;        // se usa si campo == IZQ / DER
-    int tiempo;
+    Dato key;
+    NodoG* ptr;
+    int t;
 };
 
 struct NodoG {
-    // valores originales
-    Llave llave;
-    NodoG* izq;
-    NodoG* der;
-    // log de modificaciones
+    Dato key;
+    NodoG* left;
+    NodoG* right;
     Mod log[MAX_LOG];
     int nlog;
-    // puntero inverso (versión más reciente) para redirigir en el split
-    NodoG* padre;
+    NodoG* padre;  // para el split
 };
 
 long long totalSplits = 0;
 
 struct BSTGordo {
-    vector<NodoG*> raiz;   // raiz[t] = raíz en la versión t (puntero externo)
-    int actual = 0;        // última versión
+    vector<NodoG*> raiz;
+    int actual = 0;
 
     BSTGordo() { raiz.push_back(nullptr); }
 
-    // ---------- lectura en versión t ----------
-    NodoG* leerPtr(NodoG* n, Campo c, int t) {
-        for (int i = n->nlog - 1; i >= 0; i--)
-            if (n->log[i].campo == c && n->log[i].tiempo <= t) return n->log[i].ptr;
-        return (c == IZQ) ? n->izq : n->der;
+    NodoG* leerPtr(NodoG* p, Campo c, int t) {
+        for (int i = p->nlog - 1; i >= 0; i--) {
+            if (p->log[i].campo == c && p->log[i].t <= t)
+                return p->log[i].ptr;
+        }
+        if (c == IZQ) return p->left;
+        return p->right;
     }
-    Llave leerLlave(NodoG* n, int t) {
-        for (int i = n->nlog - 1; i >= 0; i--)
-            if (n->log[i].campo == LLAVE && n->log[i].tiempo <= t) return n->log[i].llave;
-        return n->llave;
-    }
-
-    NodoG* nuevoNodo(Llave x, NodoG* padre) {
-        NodoG* n = new NodoG;
-        n->llave = x; n->izq = nullptr; n->der = nullptr;
-        n->nlog = 0; n->padre = padre;
-        return n;
+    Dato leerLlave(NodoG* p, int t) {
+        for (int i = p->nlog - 1; i >= 0; i--)
+            if (p->log[i].campo == LLAVE && p->log[i].t <= t) return p->log[i].key;
+        return p->key;
     }
 
-    // ---------- escritura en la versión t (la actual) ----------
-    // Devuelve el nodo que queda con la versión más reciente (n, o su copia si hubo split)
-    NodoG* escribir(NodoG* n, Campo c, Llave k, NodoG* p, int t) {
-        if (n->nlog < MAX_LOG) {
-            n->log[n->nlog++] = Mod{c, k, p, t};
+    NodoG* nuevoNodo(Dato x, NodoG* pa) {
+        NodoG* p = new NodoG;
+        p->key = x;
+        p->left = nullptr;
+        p->right = nullptr;
+        p->nlog = 0;
+        p->padre = pa;
+        return p;
+    }
+
+    NodoG* escribir(NodoG* p, Campo c, Dato k, NodoG* q, int t) {
+        if (p->nlog < MAX_LOG) {
+            Mod m;
+            m.campo = c; m.key = k; m.ptr = q; m.t = t;
+            p->log[p->nlog] = m;
+            p->nlog++;
         } else {
-            // SPLIT: nodo limpio con los valores más recientes + esta escritura
+            // split
             totalSplits++;
-            NodoG* m = new NodoG;
-            m->llave = leerLlave(n, INF_T);
-            m->izq   = leerPtr(n, IZQ, INF_T);
-            m->der   = leerPtr(n, DER, INF_T);
-            m->nlog  = 0;
-            m->padre = n->padre;
-            if (c == LLAVE) m->llave = k;
-            else if (c == IZQ) m->izq = p;
-            else m->der = p;
+            NodoG* aux = new NodoG;
+            aux->key = leerLlave(p, INF_T);
+            aux->left = leerPtr(p, IZQ, INF_T);
+            aux->right = leerPtr(p, DER, INF_T);
+            aux->nlog = 0;
+            aux->padre = p->padre;
+            if (c == LLAVE) aux->key = k;
+            else if (c == IZQ) aux->left = q;
+            else aux->right = q;
 
-            // los hijos (versión actual) ahora cuelgan de m
-            if (m->izq) m->izq->padre = m;
-            if (m->der) m->der->padre = m;
+            if (aux->left != nullptr) aux->left->padre = aux;
+            if (aux->right != nullptr) aux->right->padre = aux;
 
-            // redirigir el único puntero entrante (p = 1)
-            if (m->padre == nullptr) {
-                raiz[t] = m;                                   // era la raíz
+            if (aux->padre == nullptr) {
+                raiz[t] = aux;  // era raiz
             } else {
-                NodoG* pa = m->padre;
-                Campo lado = (leerPtr(pa, IZQ, INF_T) == n) ? IZQ : DER;
-                escribir(pa, lado, 0, m, t);                   // puede hacer split en cascada
+                NodoG* pa = aux->padre;
+                Campo lado;
+                if (leerPtr(pa, IZQ, INF_T) == p) lado = IZQ;
+                else lado = DER;
+                escribir(pa, lado, 0, aux, t);  // cascada
             }
-            n = m;   // el nodo viejo n queda intacto para versiones < t
+            p = aux;
         }
-        if (c != LLAVE && p != nullptr) p->padre = n;          // actualizar puntero inverso
-        return n;
+        if (c != LLAVE && q != nullptr) q->padre = p;
+        return p;
     }
 
-    // cambia el puntero que apunta a "hijo viejo" desde "padre" por "nuevoHijo"
-    void reemplazar(NodoG* padre, Campo lado, NodoG* nuevoHijo, int t) {
-        if (padre == nullptr) {
-            raiz[t] = nuevoHijo;
-            if (nuevoHijo) nuevoHijo->padre = nullptr;
-        } else {
-            escribir(padre, lado, 0, nuevoHijo, t);
+    void reemplazar(NodoG* pa, Campo lado, NodoG* h, int t) {
+        if (pa == nullptr) {
+            raiz[t] = h;
+            if (h) h->padre = nullptr;
+        }
+        else {
+            escribir(pa, lado, 0, h, t);
         }
     }
 
-    Campo ladoDe(NodoG* hijo) {
-        return (leerPtr(hijo->padre, IZQ, INF_T) == hijo) ? IZQ : DER;
+    Campo ladoDe(NodoG* h) {
+        if (leerPtr(h->padre, IZQ, INF_T) == h) return IZQ;
+        return DER;
     }
 
-    // ---------- operaciones (sobre la ÚLTIMA versión) ----------
     int nuevaVersion() {
         actual++;
         raiz.push_back(raiz[actual - 1]);
         return actual;
     }
 
-    int insertar(Llave x) {
+    int insertar(Dato x) {
         int t = nuevaVersion();
-        if (raiz[t] == nullptr) { raiz[t] = nuevoNodo(x, nullptr); return t; }
-        NodoG* cur = raiz[t];
+        if (raiz[t] == nullptr) {
+            raiz[t] = nuevoNodo(x, nullptr);
+            return t;
+        }
+        NodoG* p = raiz[t];
         while (true) {
-            Llave k = leerLlave(cur, t);
-            if (x == k) return t;                          // ya existe
-            Campo dir = (x < k) ? IZQ : DER;
-            NodoG* sig = leerPtr(cur, dir, t);
-            if (sig == nullptr) {
-                escribir(cur, dir, 0, nuevoNodo(x, cur), t);
+            Dato k = leerLlave(p, t);
+            if (x == k) return t;
+            Campo dir;
+            if (x < k) dir = IZQ; else dir = DER;
+            NodoG* q = leerPtr(p, dir, t);
+            if (q == nullptr) {
+                escribir(p, dir, 0, nuevoNodo(x, p), t);
                 return t;
             }
-            cur = sig;
+            p = q;
         }
     }
 
-    int eliminar(Llave x) {
+    int eliminar(Dato x) {
         int t = nuevaVersion();
         NodoG* z = raiz[t];
-        while (z != nullptr && leerLlave(z, t) != x)
-            z = leerPtr(z, (x < leerLlave(z, t)) ? IZQ : DER, t);
-        if (z == nullptr) return t;                        // no estaba
+        while (z != nullptr && leerLlave(z, t) != x) {
+            if (x < leerLlave(z, t)) z = leerPtr(z, IZQ, t);
+            else z = leerPtr(z, DER, t);
+        }
+        if (z == nullptr) return t;
 
-        NodoG* zi = leerPtr(z, IZQ, t);
-        NodoG* zd = leerPtr(z, DER, t);
-        if (zi == nullptr || zd == nullptr) {
-            NodoG* hijo = zi ? zi : zd;
-            if (z->padre == nullptr) reemplazar(nullptr, IZQ, hijo, t);
-            else reemplazar(z->padre, ladoDe(z), hijo, t);
+        NodoG* n1 = leerPtr(z, IZQ, t);
+        NodoG* n2 = leerPtr(z, DER, t);
+        if (n1 == nullptr || n2 == nullptr) {
+            NodoG* h;
+            if (n1 != nullptr) h = n1; else h = n2;
+            if (z->padre == nullptr) reemplazar(nullptr, IZQ, h, t);
+            else reemplazar(z->padre, ladoDe(z), h, t);
             return t;
         }
-        // dos hijos: copio la llave del sucesor en z y quito al sucesor
-        NodoG* s = zd;
-        while (leerPtr(s, IZQ, t) != nullptr) s = leerPtr(s, IZQ, t);
-        Llave ks = leerLlave(s, t);
-        escribir(z, LLAVE, ks, nullptr, t);                // puede hacer split de z
-        // s->padre ya está actualizado aunque z se haya partido
+        // 2 hijos -> sucesor
+        NodoG* s = n2;
+        while (leerPtr(s, IZQ, t) != nullptr)
+            s = leerPtr(s, IZQ, t);
+        Dato ks = leerLlave(s, t);
+        escribir(z, LLAVE, ks, nullptr, t);
         reemplazar(s->padre, ladoDe(s), leerPtr(s, DER, t), t);
         return t;
     }
 
-    // ---------- consultas en CUALQUIER versión ----------
-    bool buscar(int t, Llave x) {
-        NodoG* n = raiz[t];
-        while (n != nullptr) {
-            Llave k = leerLlave(n, t);
+    bool buscar(int t, Dato x) {
+        NodoG* p = raiz[t];
+        while (p != nullptr) {
+            Dato k = leerLlave(p, t);
             if (x == k) return true;
-            n = leerPtr(n, (x < k) ? IZQ : DER, t);
+            if (x < k) p = leerPtr(p, IZQ, t);
+            else p = leerPtr(p, DER, t);
         }
         return false;
     }
 
-    void inordenRec(NodoG* n, int t, vector<Llave>& out) {
-        if (!n) return;
-        inordenRec(leerPtr(n, IZQ, t), t, out);
-        out.push_back(leerLlave(n, t));
-        inordenRec(leerPtr(n, DER, t), t, out);
+    void inordenRec(NodoG* p, int t, vector<Dato>& res) {
+        if (p == nullptr) return;
+        inordenRec(leerPtr(p, IZQ, t), t, res);
+        res.push_back(leerLlave(p, t));
+        inordenRec(leerPtr(p, DER, t), t, res);
     }
-    vector<Llave> inorden(int t) { vector<Llave> out; inordenRec(raiz[t], t, out); return out; }
+    vector<Dato> inorden(int t) {
+        vector<Dato> res;
+        inordenRec(raiz[t], t, res);
+        return res;
+    }
 
     void imprimir(int t) {
         cout << "v" << t << ": ";
-        for (Llave x : inorden(t)) cout << x << " ";
+        vector<Dato> res = inorden(t);
+        for (int i = 0; i < (int)res.size(); i++) cout << res[i] << " ";
         cout << "\n";
     }
 };
 
 int main() {
     BSTGordo T;
-    for (int x : {50, 30, 70, 20, 40, 60, 80}) T.insertar(x);   // v1..v7
-    T.eliminar(30);                                              // v8 (2 hijos)
-    T.insertar(35);                                              // v9
-    T.eliminar(50);                                              // v10 (raíz)
+    int a[7] = {50, 30, 70, 20, 40, 60, 80};
+    for (int i = 0; i < 7; i++) T.insertar(a[i]);
+    T.eliminar(30);
+    T.insertar(35);
+    T.eliminar(50);  // la raiz
 
     for (int t = 0; t <= T.actual; t++) T.imprimir(t);
     cout << "splits hasta ahora: " << totalSplits << "\n";
