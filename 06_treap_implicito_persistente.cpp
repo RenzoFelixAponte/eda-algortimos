@@ -1,24 +1,6 @@
-// =====================================================================
-// 06 - SECUENCIA PERSISTENTE CONFLUENTE (treap implícito + path copying)
-// ---------------------------------------------------------------------
-// Es un "arreglo/lista" persistente donde la llave es la POSICIÓN
-// (implícita, se calcula con tam). Todo se hace con split y merge, y
-// ambos copian solo los nodos del camino => O(lg n) esperado.
-//
-//   insertar(v, pos, x)  borrar(v, pos)  obtener(v, pos)  asignar(v, pos, x)
-//   sumaRango(v, l, r)   subsecuencia(v, l, r)
-//   concat(v1, v2)  <-- combina 2 versiones cualesquiera => CONFLUENTE
-//
-// Detalle importante: un treap normal guarda una prioridad aleatoria en
-// cada nodo, pero si concatenas una versión consigo misma los nodos se
-// repiten y las prioridades dejan de ser independientes. Por eso aquí el
-// merge decide la raíz al azar con probabilidad tam(a) / (tam(a)+tam(b))
-// (sin prioridades guardadas) -> sigue siendo O(lg n) esperado.
-//
-// Demo de confluencia: concatenar una versión consigo misma u veces da
-// 2^u elementos usando solo O(u lg) nodos nuevos (lo que dice la teoría:
-// hasta 2^u "formas" de combinar -> por eso nodos gordos no alcanzan).
-// =====================================================================
+// secuencia persistente con treap implicito (split/merge con path copying)
+// concat de dos versiones -> persistencia confluente. O(lg n) esperado
+// el merge elige la raiz al azar segun tamanos (no guarda prioridades) para poder concatenar una version consigo misma
 #include <iostream>
 #include <vector>
 #include <random>

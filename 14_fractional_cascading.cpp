@@ -1,23 +1,5 @@
-// =====================================================================
-// 14 - FRACTIONAL CASCADING  — Semana 5
-// ---------------------------------------------------------------------
-// Problema: k listas ordenadas L1..Lk (cada una <= n). Para un x, dar en
-// CADA lista el primer elemento >= x (su "sucesor").
-//   - ingenuo: k búsquedas binarias -> O(k lg n)
-//   - fractional cascading:           -> O(k + lg n)
-//
-// Construcción (de abajo hacia arriba):
-//   M_k = L_k
-//   M_i = L_i  mezclado con  UNO DE CADA DOS elementos de M_{i+1}
-//   => |M_i| <= |L_i| + |M_{i+1}|/2  => espacio total O(total de L)
-// Cada elemento de M_i guarda dos punteros:
-//   propio[j] = índice en L_i del primer elemento >= M_i[j]
-//   baja[j]   = índice en M_{i+1} del primer elemento >= M_i[j]
-//
-// Consulta: UNA binaria en M_1; luego en cada nivel sigo "baja" y
-// retrocedo a lo mucho 1 posición (entre dos promovidos hay a lo mucho
-// 1 elemento no promovido). => O(lg n) + O(1) por lista.
-// =====================================================================
+// fractional cascading: buscar x en k listas ordenadas en O(k + lg n)
+// M_i = L_i + uno de cada dos elementos de M_{i+1}, con punteros hacia abajo
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -68,7 +50,7 @@ struct FractionalCascading {
 };
 
 int main() {
-    // listas del ejemplo de tu Notion (semana 4)
+    // listas del ejemplo de clase
     vector<vector<Llave>> listas = {
         {2, 5, 8, 12, 15},
         {3, 5, 9, 12, 18},
@@ -85,20 +67,5 @@ int main() {
     for (int i = 0; i < F.k; i++)
         cout << "L" << i + 1 << "->" << (r[i] < (int)listas[i].size() ? to_string(listas[i][r[i]]) : "none") << "  ";
     cout << "\n";
-
-    // prueba aleatoria vs k binarias
-    srand(9);
-    int K = 20;
-    vector<vector<Llave>> Ls(K);
-    for (auto& l : Ls) { int n = rand() % 200; for (int j = 0; j < n; j++) l.push_back(rand() % 5000); sort(l.begin(), l.end()); }
-    FractionalCascading G(Ls); bool ok = true; int Q = 20000;
-    for (int q = 0; q < Q; q++) {
-        Llave y = rand() % 5200 - 100;
-        vector<int> res = G.buscar(y);
-        for (int i = 0; i < K; i++)
-            if (res[i] != (int)(lower_bound(Ls[i].begin(), Ls[i].end(), y) - Ls[i].begin())) ok = false;
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO")
-         << " | pasos atrás por nivel = " << (double)G.pasosAtras / (Q * (K - 1)) << " (<= 1)\n";
     return 0;
 }

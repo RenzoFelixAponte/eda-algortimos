@@ -1,16 +1,6 @@
-// =====================================================================
-// 04 - SEGMENT TREE PERSISTENTE (path copying)
-// ---------------------------------------------------------------------
-// Update(pos, val) copia exactamente UN nodo por nivel (el camino
-// raíz -> hoja pos); el resto se comparte.  h = O(lg n).
-//   - raiz[v] = raíz de la versión v.
-//   - Se puede actualizar cualquier versión => persistencia TOTAL.
-//   - También sirve como ARREGLO PERSISTENTE: get(v,i) = query(v,i,i).
-//
-// Para adaptarlo: cambia NEUTRO y combinar() (suma, min, max, gcd, ...).
-//
-// Costos: build O(n) | update O(lg n) tiempo y espacio | query O(lg n)
-// =====================================================================
+// segment tree persistente (path copying)
+// update copia un nodo por nivel -> O(lg n) tiempo y espacio
+// tambien sirve como arreglo persistente: get(v,i) = query(v,i,i)
 #include <iostream>
 #include <vector>
 #include <algorithm>

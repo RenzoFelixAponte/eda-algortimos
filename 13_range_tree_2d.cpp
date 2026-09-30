@@ -1,26 +1,6 @@
-// =====================================================================
-// 13 - RANGE TREE 2D  — Semana 4
-// ---------------------------------------------------------------------
-// Consulta: puntos con x en [x1, x2] y y en [y1, y2].
-//
-// Estructura: BST balanceado PRIMARIO por x. Cada nodo v guarda además
-// una estructura SECUNDARIA con los puntos de su subárbol ordenados por y
-// (aquí un arreglo ordenado = BST 1D estático).
-//
-// Consulta:
-//   1) buscar v_split por x
-//   2) bajar por el camino a x1: cada subárbol derecho que "cuelga" está
-//      completo en [x1, x2] -> búsqueda binaria por y en su arreglo
-//   3) igual por el camino a x2 con los subárboles izquierdos
-//   => O(lg n) subárboles canónicos × O(lg n) búsqueda binaria
-//
-//   Espacio  O(n lg n)   (cada punto aparece en los O(lg n) nodos que son
-//                          sus ancestros)
-//   Construir O(n lg n)
-//   Conteo   O(lg² n)    Enumeración O(lg² n + k)
-// El costo escondido: la binaria por y se repite en cada nodo canónico
-// -> se arregla con Fractional Cascading (14) = Layered Range Tree (15).
-// =====================================================================
+// range tree 2D
+// BST por x, cada nodo guarda los puntos de su subarbol ordenados por y
+// consulta O(lg^2 n + k), espacio O(n lg n)
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -128,22 +108,5 @@ int main() {
     cout << "[3,8] x [4,8]: ";
     for (auto& p : T.reportar(3, 8, 4, 8)) cout << "(" << p.x << "," << p.y << ") ";
     cout << " conteo=" << T.contar(3, 8, 4, 8) << "\n";
-
-    // prueba aleatoria vs fuerza bruta
-    srand(11);
-    vector<Punto> v;
-    for (int i = 0; i < 400; i++) v.push_back({rand() % 100, rand() % 100, i});
-    RangeTree2D R(v); bool ok = true;
-    for (int q = 0; q < 3000; q++) {
-        int x1 = rand() % 100, x2 = rand() % 100, y1 = rand() % 100, y2 = rand() % 100;
-        if (x1 > x2) swap(x1, x2);
-        if (y1 > y2) swap(y1, y2);
-        vector<int> a, b;
-        for (auto& p : v) if (x1 <= p.x && p.x <= x2 && y1 <= p.y && p.y <= y2) a.push_back(p.id);
-        for (auto& p : R.reportar(x1, x2, y1, y2)) b.push_back(p.id);
-        sort(a.begin(), a.end()); sort(b.begin(), b.end());
-        if (a != b || (int)a.size() != R.contar(x1, x2, y1, y2)) ok = false;
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

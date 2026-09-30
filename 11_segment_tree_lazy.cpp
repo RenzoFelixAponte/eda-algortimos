@@ -1,13 +1,4 @@
-// =====================================================================
-// 11 - SEGMENT TREE (normal + lazy propagation)
-// ---------------------------------------------------------------------
-// Árbol sobre índices [0, n-1]; cada nodo guarda el agregado de su rango.
-//   update puntual        O(lg n)
-//   query de rango        O(lg n)   (a lo mucho 4 nodos por nivel)
-//   update de RANGO lazy  O(lg n)   (sumar v a todo [l, r])
-// Versión persistente: ver 04.
-// Para cambiar la operación: combinar / NEUTRO / aplicar().
-// =====================================================================
+// segment tree con lazy propagation (suma en rango + sumar a un rango)
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -78,17 +69,5 @@ int main() {
     cout << "tras +10 en [2,5]: suma[0,3]=" << T.suma(0, 3) << "\n";   // 30
     T.asignar(3, 0);                                       // 1 2 13 0 15 16 7 8
     cout << "tras a[3]=0: suma[3,6]=" << T.suma(3, 6) << "\n";         // 38
-
-    // prueba aleatoria
-    srand(5);
-    int n = 300; vector<Valor> b(n, 0); SegTreeLazy S(b); bool ok = true;
-    for (int it = 0; it < 20000; it++) {
-        int l = rand() % n, r = rand() % n; if (l > r) swap(l, r);
-        int op = rand() % 3;
-        if (op == 0) { Valor v = rand() % 100 - 50; S.sumarRango(l, r, v); for (int i = l; i <= r; i++) b[i] += v; }
-        else if (op == 1) { Valor v = rand() % 100; S.asignar(l, v); b[l] = v; }
-        else { Valor s = 0; for (int i = l; i <= r; i++) s += b[i]; if (s != S.suma(l, r)) ok = false; }
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

@@ -1,24 +1,5 @@
-// =====================================================================
-// 05 - APLICACIONES CLÁSICAS del SEGMENT TREE PERSISTENTE
-// ---------------------------------------------------------------------
-// Truco general: "una versión por prefijo".  raiz[i] = árbol después de
-// procesar a[0..i-1]. Una consulta sobre [l, r] usa 1 o 2 versiones.
-//
-// (A) DISTINTOS en [l, r]  (Ejercicio 12 de tu Problemset)
-//     Recorro i = 0..n-1. En la versión i+1 marco un 1 en la posición i
-//     y, si a[i] ya apareció en la posición ult[a[i]], ahí pongo 0.
-//     => en la versión r+1 solo queda marcada la ÚLTIMA aparición (<= r)
-//        de cada valor.  distintos(l, r) = suma de [l, r] en versión r+1.
-//     Online, O(n lg n) construir, O(lg n) por consulta.
-//
-// (B) K-ÉSIMO MENOR en [l, r]
-//     Árbol sobre los VALORES (comprimidos). raiz[i+1] = raiz[i] + 1 en
-//     el valor a[i]. La "resta" raiz[r+1] - raiz[l] cuenta cuántos
-//     valores de a[l..r] caen en cada rango de valores -> bajo por el
-//     árbol como en un BST de rangos.  O(lg n) por consulta.
-//
-// (C) CUÁNTOS <= x en [l, r]  (misma estructura que B)
-// =====================================================================
+// aplicaciones del segment tree persistente: una version por prefijo
+// (A) cantidad de distintos en [l,r]  (B) k-esimo menor en [l,r]  (C) cuantos <= x en [l,r]
 #include <iostream>
 #include <vector>
 #include <map>
@@ -124,18 +105,5 @@ int main() {
     cout << "[1,5] ordenado = 1 2 2 2 3 -> k=1:" << K.kesimo(1, 5, 1) << " k=3:" << K.kesimo(1, 5, 3)
          << " k=5:" << K.kesimo(1, 5, 5) << "\n";
     cout << "cuántos <= 2 en [3,7] = " << K.contarMenoresIguales(3, 7, 2) << "\n";
-
-    // --- verificación por fuerza bruta ---
-    bool ok = true;
-    int n = (int)a.size();
-    for (int l = 0; l < n; l++) for (int r = l; r < n; r++) {
-        vector<int> sub(a.begin() + l, a.begin() + r + 1);
-        vector<int> s = sub; sort(s.begin(), s.end());
-        int dist = (int)(unique(s.begin(), s.end()) - s.begin());
-        if (dist != D.consulta(l, r)) ok = false;
-        sort(sub.begin(), sub.end());
-        for (int k = 1; k <= (int)sub.size(); k++) if (sub[k - 1] != K.kesimo(l, r, k)) ok = false;
-    }
-    cout << "verificación fuerza bruta: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

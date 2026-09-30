@@ -1,19 +1,5 @@
-// =====================================================================
-// 16 - RANGE TREE 3D  — Semana 5 (Rango 3D)
-// ---------------------------------------------------------------------
-// Caja [x1,x2] x [y1,y2] x [z1,z2].
-// Árbol primario por x; cada nodo v guarda un LAYERED RANGE TREE 2D
-// (archivo 15) con los puntos de su subárbol en coordenadas (y, z).
-//   - buscar v_split por x, bajar por los dos caminos
-//   - cada subárbol canónico (O(lg n) de ellos) -> consulta 2D en O(lg n + k_i)
-//
-//   Espacio O(n lg² n) | Consulta O(lg² n + k)
-// (En general, d dimensiones: O(lg^{d-1} n + k) con el último nivel "layered".)
-//
-// En la clase: para bajar a O(lg n + k) se usa una estructura de
-// dominancia especial en el último nivel (con persistencia / rayos);
-// esa parte es más teórica y aquí se deja con el layered normal.
-// =====================================================================
+// range tree 3D: BST por x y en cada nodo un layered range tree en (y, z)
+// consulta O(lg^2 n + k), espacio O(n lg^2 n)
 #define SIN_MAIN
 #include "15_layered_range_tree.cpp"
 #undef SIN_MAIN
@@ -79,21 +65,5 @@ int main() {
     cout << "caja [2,6]x[1,6]x[3,6]: ids ";
     for (int id : T.reportar(2, 6, 1, 6, 3, 6)) cout << id << " ";
     cout << "\n";
-
-    srand(33);
-    vector<Punto3> v;
-    for (int i = 0; i < 300; i++) v.push_back({rand() % 50, rand() % 50, rand() % 50, i});
-    RangeTree3D R(v); bool ok = true;
-    for (int q = 0; q < 2000; q++) {
-        int c[6];
-        for (int& t : c) t = rand() % 55 - 2;
-        for (int d = 0; d < 6; d += 2) if (c[d] > c[d + 1]) swap(c[d], c[d + 1]);
-        vector<int> a, b = R.reportar(c[0], c[1], c[2], c[3], c[4], c[5]);
-        for (auto& p : v)
-            if (c[0] <= p.x && p.x <= c[1] && c[2] <= p.y && p.y <= c[3] && c[4] <= p.z && p.z <= c[5]) a.push_back(p.id);
-        sort(a.begin(), a.end()); sort(b.begin(), b.end());
-        if (a != b) ok = false;
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

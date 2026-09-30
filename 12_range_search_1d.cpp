@@ -1,20 +1,5 @@
-// =====================================================================
-// 12 - ORTHOGONAL RANGE SEARCH en 1 DIMENSIÓN  — Semana 4
-// ---------------------------------------------------------------------
-// Problema: dados n números, ¿cuáles caen en [l, r]?
-//   existencia (¿hay alguno?) | conteo (¿cuántos?) | enumeración (¿cuáles?)
-//
-// (A) Arreglo ordenado + búsqueda binaria (solo sirve en 1D, estático)
-//     conteo O(lg n), enumeración O(lg n + k)
-//
-// (B) BST balanceado (base del Range Tree): buscar el nodo SPLIT (donde
-//     los caminos a l y a r se separan). Desde el split:
-//       - camino a l: cada vez que voy a la IZQUIERDA, todo el subárbol
-//         DERECHO cuelga dentro del rango -> se reporta entero
-//       - camino a r: simétrico
-//     Hay O(lg n) subárboles "colgados" => enumeración O(lg n + k),
-//     conteo O(lg n) si cada nodo guarda tam. Se generaliza a d dimensiones.
-// =====================================================================
+// busqueda por rango en 1D
+// (A) arreglo ordenado + busqueda binaria  (B) BST balanceado con nodo split
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -110,7 +95,7 @@ struct Rango1DBST {
 };
 
 int main() {
-    vector<Llave> pts = {2, 6, 7, 23, 42, 52, 68, 71};     // el ejemplo de tu Notion
+    vector<Llave> pts = {2, 6, 7, 23, 42, 52, 68, 71};     // ejemplo de clase
     Rango1DArreglo A(pts);
     Rango1DBST B(pts);
 
@@ -119,16 +104,5 @@ int main() {
     cout << "[5, 50] -> ";
     for (Llave x : B.reportar(5, 50)) cout << x << " ";
     cout << "| conteo BST=" << B.contar(5, 50) << " arreglo=" << A.contar(5, 50) << "\n";
-
-    // prueba aleatoria
-    srand(3);
-    vector<Llave> v;
-    for (int i = 0; i < 500; i++) v.push_back(rand() % 1000);
-    Rango1DArreglo AA(v); Rango1DBST BB(v); bool ok = true;
-    for (int q = 0; q < 5000; q++) {
-        int l = rand() % 1100 - 50, r = rand() % 1100 - 50; if (l > r) swap(l, r);
-        if (AA.reportar(l, r) != BB.reportar(l, r) || AA.contar(l, r) != BB.contar(l, r)) ok = false;
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

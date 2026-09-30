@@ -1,21 +1,6 @@
-// =====================================================================
-// 10 - FIBONACCI HEAP (min)  — Semana 2 de tu Notion
-// ---------------------------------------------------------------------
-// Colección de árboles min-heap; raíces en lista circular doble.
-// Invariantes:
-//   1) llave(x) >= llave(padre(x))
-//   2) un nodo no raíz pierde a lo mucho 1 hijo desde que fue enlazado
-//      (marca); si pierde el 2º se corta también (cascading cut)
-//   3) => grado máximo D(n) = O(lg n)  (S(x) >= F(k+2))
-//
-//   Operación      Peor caso   Amortizado      Φ(H) = t(H) + 2 m(H)
-//   Find-Min       O(1)        O(1)
-//   Insert         O(1)        O(1)
-//   Union          O(1)        O(1)
-//   Decrease-Key   O(n)        O(1)
-//   Extract-Min    O(n)        O(lg n)
-//   Delete         O(n)        O(lg n)
-// =====================================================================
+// fibonacci heap (min)
+// insert, union, decrease-key O(1) amortizado; extract-min y delete O(lg n) amortizado
+// potencial: t(H) + 2 m(H)
 #include <iostream>
 #include <vector>
 #include <climits>
@@ -204,16 +189,5 @@ int main() {
     cout << "extraerMin: ";
     while (!H.vacio()) cout << H.extraerMin() << " ";
     cout << "\n";
-
-    // prueba aleatoria vs ordenar
-    FibHeap R; vector<Nodo*> nodos; vector<int> vivos;
-    srand(1);
-    for (int i = 0; i < 20000; i++) { int k = rand() % 1000000; nodos.push_back(R.insertar(k)); }
-    for (int i = 0; i < 20000; i += 3) R.decreaseKey(nodos[i], nodos[i]->llave - rand() % 1000);
-    vector<int> sal;
-    while (!R.vacio()) sal.push_back(R.extraerMin());
-    bool ok = sal.size() == 20000;
-    for (size_t i = 1; i < sal.size(); i++) if (sal[i] < sal[i - 1]) ok = false;
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

@@ -1,20 +1,6 @@
-// =====================================================================
-// 01 - STACK PERSISTENTE (funcional)
-// ---------------------------------------------------------------------
-// Idea: el stack es una lista enlazada que NUNCA se modifica.
-//   - Una versión = un puntero al tope.
-//   - Push crea UN nodo nuevo que apunta a la versión vieja.
-//   - Pop solo devuelve tope->sig (no crea nada).
-// Como nada se sobrescribe => persistencia TOTAL gratis (puedo hacer
-// push/pop sobre cualquier versión vieja, no solo la última).
-//
-// Concat(S1, S2): para colgar S2 al final de S1 habría que cambiar el
-// último "sig" de S1 -> prohibido. Se copia todo S1 (path copying: el
-// camino tope -> nodo que cambia es TODO S1). Combina 2 versiones
-// => persistencia CONFLUENTE.
-//
-// Costos:  push O(1) | pop O(1) | top O(1) | concat O(|S1|) (S2 se comparte)
-// =====================================================================
+// stack persistente (funcional)
+// cada version es un puntero al tope, nunca se modifica un nodo -> persistencia total
+// push/pop O(1), concat O(|S1|) (copia S1) -> confluente
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -81,7 +67,7 @@ struct StackPersistente {
 int main() {
     StackPersistente<int> S;
 
-    // Ejemplo del Extra 2B de tu Notion
+    // ejemplo extra 2B
     int v1 = S.push(0, 5);    // [5]
     int v2 = S.push(v1, 7);   // [7 -> 5]
     int v3 = S.push(v1, 9);   // [9 -> 5]  <- push sobre v1, que NO es la última => TOTAL

@@ -1,19 +1,6 @@
-// =====================================================================
-// 09 - MONTÍCULO BINOMIAL (min)
-// ---------------------------------------------------------------------
-// Colección de árboles binomiales B_k (B_k tiene 2^k nodos, raíz de
-// grado k) con A LO MUCHO UNO de cada grado -> como la representación
-// binaria de n. Lista de raíces ordenada por grado.
-//
-//   link(y, z)    : y (llave mayor) pasa a ser hijo de z.  B_k + B_k = B_{k+1}
-//   unir(H1, H2)  : merge de listas por grado + "suma binaria con acarreo"  O(lg n)
-//   insertar      : unir con un B_0.  O(lg n) peor caso, O(1) AMORTIZADO
-//                   (Ejercicio 6: es como incrementar un contador binario;
-//                    potencial Φ = # árboles.)
-//   extraerMin    : quitar la raíz mínima, invertir su lista de hijos, unir.  O(lg n)
-//   decreaseKey   : subir intercambiando llaves con el padre.  O(lg n)
-//   eliminar      : decreaseKey a -INF + extraerMin.  O(lg n)
-// =====================================================================
+// monticulo binomial (min)
+// a lo mucho un arbol B_k de cada grado, como los bits de n
+// insertar O(1) amortizado (como incrementar un contador binario)
 #include <iostream>
 #include <vector>
 #include <climits>

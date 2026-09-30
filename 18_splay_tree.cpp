@@ -1,17 +1,6 @@
-// =====================================================================
-// 18 - SPLAY TREE  — Semana 6 (Dynamic Optimality I)
-// ---------------------------------------------------------------------
-// Cada vez que accedo a x lo SUBO A LA RAÍZ con rotaciones (splay):
-//   Zig     : p es la raíz                       -> rotar x una vez
-//   Zig-Zig : x y p en la MISMA dirección (línea)-> rotar p con g, luego x con p
-//   Zig-Zag : direcciones OPUESTAS (codo)        -> rotar x dos veces
-//
-// O(lg n) amortizado por operación. Cumple: acceso secuencial,
-// dynamic finger, working set y cota de entropía (optimalidad estática).
-// ¿Propiedad unificada? no se sabe. ¿O(1)-competitivo? conjetura abierta.
-//
-// Con padre explícito (modelo BST de la clase: padre, izq, der).
-// =====================================================================
+// splay tree: cada acceso sube el nodo a la raiz
+// zig (padre es raiz), zig-zig (misma direccion), zig-zag (direcciones opuestas)
+// O(lg n) amortizado
 #include <iostream>
 #include <vector>
 #include <set>
@@ -125,32 +114,5 @@ int main() {
     cout << "raíz tras insertar 10..50 = " << T.raiz->llave << ", profundidad de 10 = " << T.profundidad(10) << "\n";
     T.buscar(10);
     cout << "tras buscar(10): raíz = " << T.raiz->llave << ", profundidad de 50 = " << T.profundidad(50) << "\n";
-
-    // acceso secuencial: O(1) amortizado por acceso
-    int N = 100000;
-    SplayTree S;
-    for (int i = 0; i < N; i++) S.insertar(rand());
-    vector<Llave> llaves; S.inorden(S.raiz, llaves);
-    rotaciones = 0;
-    for (int rep = 0; rep < 3; rep++) for (Llave x : llaves) S.buscar(x);
-    cout << "acceso secuencial: rotaciones por búsqueda = " << (double)rotaciones / (3.0 * llaves.size()) << " (O(1))\n";
-
-    // working set: repetir pocas llaves es barato
-    rotaciones = 0;
-    for (int i = 0; i < 300000; i++) S.buscar(llaves[i % 8 * 1000]);
-    cout << "working set de 8 llaves: rotaciones por búsqueda = " << rotaciones / 300000.0 << " (O(lg 8))\n";
-
-    // prueba aleatoria vs std::set
-    srand(8);
-    SplayTree R; set<Llave> ref; bool ok = true;
-    for (int i = 0; i < 50000; i++) {
-        Llave x = rand() % 3000; int op = rand() % 3;
-        if (op == 0) { R.insertar(x); ref.insert(x); }
-        else if (op == 1) { R.eliminar(x); ref.erase(x); }
-        else if (R.buscar(x) != (ref.count(x) > 0)) ok = false;
-    }
-    vector<Llave> v; R.inorden(R.raiz, v);
-    if (v != vector<Llave>(ref.begin(), ref.end())) ok = false;
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

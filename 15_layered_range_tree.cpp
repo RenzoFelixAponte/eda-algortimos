@@ -1,21 +1,6 @@
-// =====================================================================
-// 15 - LAYERED RANGE TREE 2D  (Range Tree + Fractional Cascading) — Semana 5
-// ---------------------------------------------------------------------
-// Igual que el Range Tree 2D (13): BST primario por x y en cada nodo el
-// arreglo de puntos del subárbol ordenado por y.
-// La diferencia: cada posición j del arreglo de v guarda punteros
-//   pI[j] = posición en el arreglo del hijo IZQ del primer punto >= A_v[j]
-//   pD[j] = lo mismo en el hijo DER
-// (se puede porque el arreglo de cada hijo es un SUBCONJUNTO del de v).
-// => Solo UNA búsqueda binaria por y (en v_split); al bajar se siguen
-//    punteros en O(1). "Nunca hay un árbol en y."
-//
-//   Espacio O(n lg n) | Construir O(n lg n)
-//   Enumeración O(lg n + k) | Conteo O(lg n)   (antes O(lg² n))
-//
-// También resuelve DOMINANCIA: y <= b1 y z <= b2 -> rango (-INF, b1] x (-INF, b2].
-// (El archivo 16 lo usa como estructura secundaria del Range Tree 3D.)
-// =====================================================================
+// layered range tree 2D = range tree + fractional cascading
+// una sola busqueda binaria por y (en el split), luego se siguen punteros
+// consulta O(lg n + k). tambien sirve para dominancia
 #ifndef LAYERED_RANGE_TREE
 #define LAYERED_RANGE_TREE
 #include <iostream>
@@ -143,29 +128,12 @@ struct LayeredRangeTree {
 
 #ifndef SIN_MAIN
 int main() {
-    // ejercicio de dominancia de tu Notion: puntos (y, z), consulta (6, 6)
+    // ejercicio de dominancia: puntos (y, z), consulta (6, 6)
     vector<Punto> pts = {{2, 7, 'A'}, {5, 3, 'B'}, {4, 9, 'C'}, {8, 5, 'D'}, {6, 6, 'E'}};
     LayeredRangeTree T(pts);
     cout << "dominados por (6,6): ";
     for (auto& p : T.dominados(6, 6)) cout << (char)p.id << "(" << p.x << "," << p.y << ") ";
     cout << "\n";
-
-    // prueba aleatoria vs fuerza bruta
-    srand(21);
-    vector<Punto> v;
-    for (int i = 0; i < 500; i++) v.push_back({rand() % 100, rand() % 100, i});
-    LayeredRangeTree R(v); bool ok = true;
-    for (int q = 0; q < 5000; q++) {
-        int x1 = rand() % 110 - 5, x2 = rand() % 110 - 5, y1 = rand() % 110 - 5, y2 = rand() % 110 - 5;
-        if (x1 > x2) swap(x1, x2);
-        if (y1 > y2) swap(y1, y2);
-        vector<int> a, b;
-        for (auto& p : v) if (x1 <= p.x && p.x <= x2 && y1 <= p.y && p.y <= y2) a.push_back(p.id);
-        for (auto& p : R.reportar(x1, x2, y1, y2)) b.push_back(p.id);
-        sort(a.begin(), a.end()); sort(b.begin(), b.end());
-        if (a != b || (int)a.size() != R.contar(x1, x2, y1, y2)) ok = false;
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }
 #endif

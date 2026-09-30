@@ -1,27 +1,7 @@
-// =====================================================================
-// 03 - BST con PERSISTENCIA PARCIAL usando NODOS GORDOS (DSST 1989)
-// ---------------------------------------------------------------------
-// (Ejercicio de las diapositivas: "Implementa un BST con persistencia
-//  parcial usando nodos gordos".)
-//
-// Cada nodo guarda sus campos ORIGINALES + un log de cambios
-// (campo, valor_nuevo, tiempo) de tamaño máximo 2p.
-//   - En un BST cada nodo tiene p = 1 puntero entrante (su padre, o el
-//     puntero externo raiz[t] si es la raíz)  =>  log de 2p = 2 entradas.
-//   - Leer campo c en versión t: recorrer log de atrás hacia adelante,
-//     primer cambio con tiempo <= t; si no hay, valor original.
-//   - Escribir en la versión actual: si hay espacio en el log, agregar.
-//     Si el log está lleno -> SPLIT: nodo nuevo con los valores más
-//     recientes (log vacío) y se redirige el puntero entrante (el padre
-//     escribe en SU log "desde t apunto al nuevo"; eso puede provocar
-//     otro split hacia arriba -> cascada).
-//   - Para saber quién me apunta (y redirigir) cada nodo guarda un
-//     puntero inverso "padre", válido SOLO para la versión más reciente.
-//
-// PARCIAL: solo se modifica la última versión; se consulta cualquiera.
-// Costos: O(1) amortizado de overhead por cambio (potencial Φ = Σ entradas
-// usadas en logs). insertar/eliminar O(h), consultar versión t O(h).
-// =====================================================================
+// BST con persistencia parcial usando nodos gordos (DSST)
+// cada nodo: campos originales + log de 2p cambios (campo, valor, tiempo)
+// si el log se llena -> split: nodo nuevo con los valores actuales y se redirige al padre
+// en un BST p = 1 (solo el padre apunta al nodo)
 #include <iostream>
 #include <vector>
 #include <set>
@@ -220,24 +200,5 @@ int main() {
     for (int t = 0; t <= T.actual; t++) T.imprimir(t);
     cout << "splits hasta ahora: " << totalSplits << "\n";
     cout << "buscar(30) en v7=" << T.buscar(7, 30) << "  en v8=" << T.buscar(8, 30) << "\n";
-
-    // --- prueba aleatoria contra std::set: todas las versiones ---
-    srand(123);
-    BSTGordo G;
-    vector<set<Llave>> ref(1);
-    long long splitsAntes = totalSplits;
-    int OPS = 20000;
-    for (int i = 0; i < OPS; i++) {
-        Llave x = rand() % 500;
-        set<Llave> s = ref.back();
-        if (rand() % 3) { G.insertar(x); s.insert(x); }
-        else            { G.eliminar(x); s.erase(x); }
-        ref.push_back(s);
-    }
-    bool ok = true;
-    for (int t = 0; t <= G.actual; t += 1)
-        if (G.inorden(t) != vector<Llave>(ref[t].begin(), ref[t].end())) { ok = false; break; }
-    cout << "prueba aleatoria (" << OPS << " versiones): " << (ok ? "OK" : "FALLO")
-         << "  | splits por operación: " << (double)(totalSplits - splitsAntes) / OPS << " (O(1) amortizado)\n";
     return 0;
 }

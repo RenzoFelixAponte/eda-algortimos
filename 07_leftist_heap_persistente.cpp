@@ -1,21 +1,6 @@
-// =====================================================================
-// 07 - MONTÍCULO PERSISTENTE (Leftist Heap funcional)
-// ---------------------------------------------------------------------
-// Cola de prioridad persistente CONFLUENTE: se pueden unir 2 versiones.
-// Todo se reduce a merge(a, b), que baja SOLO por la espina derecha
-// (longitud O(lg n) por la propiedad leftist) copiando esos nodos.
-//
-// Propiedad leftist: rango(izq) >= rango(der), donde rango(x) = largo
-// del camino más a la derecha hasta null. => rango(raíz) <= lg(n+1).
-//
-//   insertar(v, x)  = merge(v, {x})          O(lg n)
-//   extraerMin(v)   = merge(raiz->izq, der)   O(lg n)  (no copia la raíz)
-//   union(v1, v2)   = merge(v1, v2)           O(lg n)  <-- confluente
-//   min(v)                                    O(1)
-//
-// (Comparar con Fibonacci Heap de la semana 2: Fibonacci modifica
-//  punteros en su lugar -> NO es persistente tal cual.)
-// =====================================================================
+// leftist heap persistente (min)
+// todo es merge, que baja solo por la espina derecha (O(lg n)) copiando esos nodos
+// unir dos versiones -> confluente
 #include <iostream>
 #include <vector>
 #include <algorithm>

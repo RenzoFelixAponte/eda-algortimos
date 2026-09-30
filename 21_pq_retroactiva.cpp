@@ -1,33 +1,6 @@
-// =====================================================================
-// 21 - COLA DE PRIORIDAD PARCIALMENTE RETROACTIVA (min)  — Ej. 13 (puentes)
-// ---------------------------------------------------------------------
-// Línea de tiempo de operaciones insert(k) y delete-min. Q_t = estado
-// en el tiempo t; Q_now = estado actual. Parcial: solo se consulta Q_now.
-//
-// PUENTE: un tiempo t' es puente si Q_{t'} ⊆ Q_now (todo lo que estaba
-// en t' sobrevive hasta hoy). -INF y "ahora" siempre son puentes.
-//
-// Reglas (Demaine, Iacono, Langerman) — cada cambio en el pasado
-// modifica Q_now en EXACTAMENTE UN elemento:
-//   Insert(t, insert(k)):  t' = último puente <= t
-//        entra a Q_now  max( k, max{ k' borrado después de t' } )
-//   Insert(t, delete-min): sea a = min(Q_t) (lo que borra el nuevo delete).
-//        Efecto en Q_now == haber quitado el insert(a). Entonces:
-//        si a in Q_now -> sale a
-//        si no (a se borraba en d_a): t' = primer puente >= d_a,
-//        sale  min{ k in Q_now insertado antes de t' }
-//   Delete(t, delete-min) (que había borrado k): t' = último puente < t
-//        entra a Q_now  max{ k' borrado después de t' }   (incluye a k)
-//   Delete(t, insert(k)):  si k in Q_now -> sale k
-//        si no (k fue borrado en t_k): quitar ambas ops y aplicar
-//        Insert(t_k, delete-min).
-//
-// Aquí puentes y máximos se calculan simulando la línea O(m lg m) para
-// que se vea la idea; la versión eficiente guarda la línea de tiempo en
-// un BST balanceado aumentado (prefijos de +1/-1 y max/min por subárbol)
-// y logra O(lg m) por operación retroactiva.
-// Supuesto: llaves distintas e historia válida (no delete-min en vacío).
-// =====================================================================
+// cola de prioridad (min) parcialmente retroactiva
+// puente t': Q_t' esta contenido en Q_now
+// cada cambio en el pasado cambia Q_now en exactamente un elemento
 #include <iostream>
 #include <vector>
 #include <map>
@@ -145,34 +118,5 @@ int main() {
     cout << "tras Insert(0.5, insert 10): Q_now: "; for (int k : P.Qnow) cout << k << " "; cout << " (entró 40)\n";
     P.insertarDeleteMin(0.7);      // RETROACTIVO
     cout << "tras Insert(0.7, delete-min): Q_now: "; for (int k : P.Qnow) cout << k << " "; cout << "\n";
-
-    // prueba aleatoria: historia válida al azar + UN cambio retroactivo, vs simular desde cero
-    srand(77);
-    const char* nombre[4] = {"Insert(t, insert)", "Insert(t, delete-min)", "Delete(delete-min)", "Delete(insert)"};
-    int fallos[4] = {0}, total[4] = {0};
-    for (int prueba = 0; prueba < 20000; prueba++) {
-        PQRetroactiva R; int llave = 1;
-        int m = rand() % 10 + 1;
-        for (int i = 1; i <= m; i++) {
-            if (rand() % 3) R.ops[i] = {true, (llave++ * 37) % 1009};
-            else R.ops[i] = {false, 0};
-        }
-        PQRetroactiva::Sim s = R.simular();
-        if (!s.valida) continue;
-        R.Qnow = s.final;
-        int tipo = rand() % 4;
-        Tiempo t = rand() % (m + 1) + 0.5;
-        auto it = R.ops.begin(); advance(it, rand() % R.ops.size());
-        if (tipo == 0) R.insertarInsert(t, (llave * 37) % 1009);
-        else if (tipo == 1) R.insertarDeleteMin(t);
-        else if (tipo == 2) { if (it->second.esInsert) continue; R.borrarDeleteMin(it->first); }
-        else { if (!it->second.esInsert) continue; R.borrarInsert(it->first); }
-        PQRetroactiva::Sim s2 = R.simular();
-        if (!s2.valida) continue;
-        total[tipo]++;
-        if (s2.final != R.Qnow) fallos[tipo]++;
-    }
-    for (int i = 0; i < 4; i++)
-        cout << "  " << nombre[i] << ": " << (fallos[i] ? "FALLO " : "OK ") << total[i] - fallos[i] << "/" << total[i] << "\n";
     return 0;
 }

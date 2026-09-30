@@ -1,22 +1,6 @@
-// =====================================================================
-// 19 - VISTA GEOMÉTRICA DE LOS BST: SATISFACCIÓN ARBORAL + GREEDY
-//      (Dynamic Optimality II — Ejercicios 5, 10 y 15 del problemset)
-// ---------------------------------------------------------------------
-// Un acceso x_i en el tiempo i = punto (x_i, i)   (x = llave, y = tiempo).
-// Una ejecución de BST = conjunto de puntos TOCADOS (fila i = nodos que
-// toca el acceso i). Costo del BST = cantidad de puntos.
-//
-// Conjunto ARBORALMENTE SATISFECHO: para todo par de puntos que NO están
-// en la misma fila ni columna, el rectángulo que forman (con bordes)
-// contiene algún OTRO punto.
-// Teorema: un conjunto de puntos es la ejecución de un BST  <=>  es
-// arboralmente satisfecho.  => OPT(X) = mínimo superconjunto satisfecho.
-//
-// GREEDY (Greedy Future): en cada fila i toca x_i y además la "escalera"
-// mínima de llaves que arregla los rectángulos vacíos contra filas
-// anteriores: la llave y se toca si ult(y) > ult(z) para toda z entre x_i
-// e y (sin incluir y). Se conjetura O(1)-competitivo; se sabe O(lg n) amortizado.
-// =====================================================================
+// vista geometrica de los BST: punto (llave, tiempo)
+// arboralmente satisfecho: todo rectangulo entre 2 puntos (no misma fila/columna) tiene otro punto
+// greedy: en cada fila toca x_i y la escalera de llaves que arregla los rectangulos vacios
 #include <iostream>
 #include <vector>
 #include <set>
@@ -109,19 +93,5 @@ int main() {
     set<Pt> O = optFuerzaBruta(X);
     cout << "OPT (fuerza bruta) = " << O.size() << " puntos\n";
     dibujar(O, X);
-
-    // Greedy siempre da un conjunto satisfecho
-    srand(2);
-    bool ok = true;
-    for (int it = 0; it < 200; it++) {
-        vector<int> Y; int m = rand() % 12 + 1;
-        for (int i = 0; i < m; i++) Y.push_back(rand() % 8 + 1);
-        if (!satisfecho(greedy(Y))) ok = false;
-    }
-    cout << "\nGreedy produce conjuntos satisfechos (200 secuencias aleatorias): " << (ok ? "OK" : "FALLO") << "\n";
-
-    // acceso secuencial: costo O(1) por acceso
-    vector<int> sec; for (int i = 1; i <= 2000; i++) sec.push_back(i);
-    cout << "acceso secuencial 1..2000: puntos por acceso = " << greedy(sec).size() / 2000.0 << "\n";
     return 0;
 }

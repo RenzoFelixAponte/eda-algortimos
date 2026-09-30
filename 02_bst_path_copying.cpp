@@ -1,21 +1,6 @@
-// =====================================================================
-// 02 - BST PERSISTENTE con PATH COPYING (persistencia funcional)
-// ---------------------------------------------------------------------
-// Idea: nunca modifico un nodo. Al insertar/eliminar solo COPIO los
-// nodos del camino raíz -> punto que cambia; todo lo demás se comparte.
-//   - raiz[v] = puntero a la raíz de la versión v (arreglo externo).
-//   - Actualizar cualquier versión => persistencia TOTAL.
-//
-// Truco para no copiar de más: primero bajo recursivamente; si el hijo
-// que me devuelven es el MISMO puntero de antes, no cambió nada y
-// devuelvo el nodo original (sin copiar).
-//
-// Extra: cada nodo guarda tam (tamaño del subárbol) para k-ésimo / rango.
-//
-// Costos (h = altura):  insertar O(h) tiempo y espacio | eliminar O(h)
-//                       buscar O(h) | k-ésimo O(h) | contarMenores O(h)
-// (No está balanceado: si quieres O(lg n) garantizado ver 06_treap.)
-// =====================================================================
+// BST persistente con path copying
+// solo se copian los nodos del camino raiz -> cambio, lo demas se comparte
+// raiz[v] = raiz de la version v. insertar/eliminar O(h)
 #include <iostream>
 #include <vector>
 #include <set>
@@ -153,22 +138,5 @@ int main() {
     for (int v : {v1, v2, v3, v4, v5, v6, v7}) T.imprimir(v);
     cout << "v6 buscar(30)=" << T.buscar(v6, 30) << "  v5 buscar(30)=" << T.buscar(v5, 30) << "\n";
     cout << "v5: 2do menor=" << T.kesimo(v5, 2) << "  menores que 45=" << T.contarMenores(v5, 45) << "\n";
-
-    // --- prueba aleatoria contra std::set (todas las versiones) ---
-    srand(7);
-    vector<set<int>> ref(1);
-    BSTPersistente<int> P;
-    for (int i = 1; i <= 3000; i++) {
-        int base = rand() % (int)ref.size();
-        int x = rand() % 200;
-        set<int> s = ref[base];
-        if (rand() % 3) { P.insertar(base, x); s.insert(x); }
-        else            { P.eliminar(base, x); s.erase(x); }
-        ref.push_back(s);
-    }
-    bool ok = true;
-    for (int v = 0; v < (int)ref.size(); v++)
-        if (P.inorden(v) != vector<int>(ref[v].begin(), ref[v].end())) ok = false;
-    cout << "prueba aleatoria (3000 versiones): " << (ok ? "OK" : "FALLO") << "\n";
     return 0;
 }

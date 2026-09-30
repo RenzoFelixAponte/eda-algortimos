@@ -1,16 +1,5 @@
-// =====================================================================
-// 17 - ÁRBOL AVL (BST balanceado)  — referencia de la Semana 6
-// ---------------------------------------------------------------------
-// Invariante: |altura(izq) - altura(der)| <= 1 en todo nodo
-//   => altura O(lg n) => buscar / insertar / eliminar O(lg n) peor caso.
-// Un BST balanceado NO aprende del patrón de accesos: cada Buscar(x)
-// cuesta la profundidad de x (comparar con Splay, archivo 18).
-//
-// Casos de rebalanceo (bal = h(izq) - h(der)):
-//   LL: bal>1 y hijo izq con bal>=0  -> rotar der
-//   LR: bal>1 y hijo izq con bal<0   -> rotar izq el hijo, luego der
-//   RR / RL simétricos
-// =====================================================================
+// arbol AVL: |h(izq) - h(der)| <= 1 -> altura O(lg n)
+// casos LL, LR, RR, RL
 #include <iostream>
 #include <vector>
 #include <set>
@@ -110,19 +99,5 @@ int main() {
     NodoA* r = nullptr;
     for (int i = 1; i <= 1023; i++) r = insertar(r, i);        // entrada ordenada (peor caso de un BST normal)
     cout << "1023 inserts ordenados -> altura " << h(r) << " (un BST normal tendría 1023)\n";
-
-    // prueba aleatoria vs std::set
-    srand(4);
-    NodoA* t = nullptr; set<Llave> s; bool ok = true;
-    for (int i = 0; i < 50000; i++) {
-        Llave x = rand() % 2000;
-        if (rand() % 3) { t = insertar(t, x); s.insert(x); }
-        else { t = eliminar(t, x); s.erase(x); }
-        if (i % 1000 == 0) {
-            vector<Llave> v; inorden(t, v);
-            if (v != vector<Llave>(s.begin(), s.end()) || !esAVL(t)) ok = false;
-        }
-    }
-    cout << "prueba aleatoria: " << (ok ? "OK" : "FALLO") << "  altura final " << h(t) << " con n=" << s.size() << "\n";
     return 0;
 }

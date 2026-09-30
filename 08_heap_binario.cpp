@@ -1,20 +1,6 @@
-// =====================================================================
-// 08 - HEAP BINARIO (min-heap en arreglo)
-// ---------------------------------------------------------------------
-// Arreglo 1-indexado: padre(i) = i/2, izq(i) = 2i, der(i) = 2i+1.
-// Invariante: A[padre(i)] <= A[i].
-//
-//   subir (sift-up)       O(lg n)   usado por insertar / decreaseKey
-//   heapify (sift-down)   O(lg n)   usado por extraerMin
-//   buildHeap             O(n)      heapify desde n/2 hasta 1
-//   buildHeapInsert       Θ(n lg n) insertar uno por uno (peor caso: decreciente)
-//
-// Ejercicio del examen (Notion semana 2): Build-Heap vs Build-Heap-Insert
-//   (a) contraejemplo: en MIN-heap A = [3,2,1] -> [1,2,3] vs [1,3,2]
-//       (en MAX-heap, como CLRS 6-1: A = [1,2,3] -> [3,2,1] vs [3,1,2]).
-//       OJO: [3,1,2] NO sirve en min-heap: ambos dan [1,3,2].
-//   (b) Build-Heap-Insert es Θ(n lg n): contador de swaps en el main.
-// =====================================================================
+// heap binario (min) en arreglo 1-indexado
+// buildHeap O(n) vs buildHeapInsert Theta(n lg n)
+// contraejemplo min-heap: [3,2,1] -> [1,2,3] vs [1,3,2]  (max-heap: [1,2,3])
 #include <iostream>
 #include <vector>
 #include <algorithm>
